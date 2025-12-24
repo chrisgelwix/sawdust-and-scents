@@ -4,7 +4,7 @@ overview: Create a professional monorepo-based e-commerce application with NestJ
 todos:
   - id: init-nx-workspace
     content: Initialize Nx workspace with React and NestJS presets, configure ESLint/Prettier/Husky
-    status: pending
+    status: in_progress
   - id: docker-setup
     content: Create docker-compose.yml for PostgreSQL, MongoDB, and Keycloak with environment configuration
     status: pending
@@ -109,9 +109,7 @@ todos:
       - playwright-e2e
 ---
 
-# Sawdust a
-
-nd Scents - Full Stack E-commerce Application
+# Sawdust and Scents - Full Stack E-commerce Application
 
 ## Architecture Overview
 
@@ -386,9 +384,3 @@ sawdust-and-scents/
 ├── package.json
 └── README.md
 ```
-
-
-
-## Key Technical Decisions
-
-- **Monorepo**: Nx for powerful dependency graph, caching, and code generation
