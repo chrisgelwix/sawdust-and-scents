@@ -14,7 +14,7 @@ export interface Product {
   price: number;
   category: string;
   images: string[];
-  attributes: Record<string, any>;
+  attributes: Record<string, unknown>;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;

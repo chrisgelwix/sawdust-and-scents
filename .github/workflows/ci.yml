@@ -1,0 +1,36 @@
+name: CI 
+
+on:
+  push: 
+    branches: [ main, master ]
+  pull_request: 
+    branches: [ main, master ]
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    steps: 
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth:0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with: 
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Derive appropriate SHAs for base and head for nx-affected
+        uses: nrwl/nx-set-shas@v4
+
+      - name: Lint
+        run: npx nx affected -t lint
+
+      - name: Test
+        run: npx nx affected -t test
+
+      - name: Build
+        run: npx nx affected -t build 

@@ -58,7 +58,6 @@
       }
     }
   },
-  "defaultBase": "main",
   "namedInputs": {
     "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "production": [
@@ -94,5 +93,6 @@
       "dependsOn": ["^build"],
       "inputs": ["production", "^production"]
     }
-  }
+  },
+  "defaultBase": "main"
 }
