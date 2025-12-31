@@ -17,13 +17,15 @@ async function bootstrap() {
 
   // Enable CORS
   app.enableCors();
-  
+
   // Enable validation pipe
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    transform: true,
-    forbidNonWhitelisted: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    })
+  );
 
   // Enable Swagger
   const config = new DocumentBuilder()
@@ -38,9 +40,11 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port);
   Logger.log(
-    `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`,
+    `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`
   );
-  Logger.log(`📖 API Documentation available at: http://localhost:${port}/docs`);
+  Logger.log(
+    `📖 API Documentation available at: http://localhost:${port}/docs`
+  );
 }
 
 bootstrap();
