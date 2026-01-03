@@ -33,9 +33,6 @@ Thumbs.db
 coverage/
 .nyc_output/
 
-# Documentation
-docs/
-
 # Miscellaneous
 *.log
 npm-debug.log*

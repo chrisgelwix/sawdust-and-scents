@@ -5,7 +5,10 @@
 
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import {
+  DocumentBuilder,
+  SwaggerModule,
+} from '@nestjs/swagger';
 import { AppModule } from './app/app.module';
 
 async function bootstrap() {
@@ -30,11 +33,16 @@ async function bootstrap() {
   // Enable Swagger
   const config = new DocumentBuilder()
     .setTitle('Sawdust & Scents API')
-    .setDescription('The API for the Sawdust & Scents e-commerce platform')
+    .setDescription(
+      'The API for the Sawdust & Scents e-commerce platform'
+    )
     .setVersion('1.0')
     .addBearerAuth()
     .build();
-  const document = SwaggerModule.createDocument(app, config);
+  const document = SwaggerModule.createDocument(
+    app,
+    config
+  );
   SwaggerModule.setup('docs', app, document);
 
   const port = process.env.PORT || 3000;

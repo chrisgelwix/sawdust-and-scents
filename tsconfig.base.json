@@ -16,7 +16,9 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@sdas/shared-types": ["libs/shared/types/src/index.ts"],
+      "@sdas/shared-types": [
+        "libs/shared/types/src/index.ts"
+      ],
       "@sdas/shared-ui": ["libs/shared/ui/src/index.ts"]
     }
   },

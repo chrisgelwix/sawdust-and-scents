@@ -7,7 +7,9 @@
   "targets": {
     "test": {
       "executor": "@nx/jest:jest",
-      "outputs": ["{workspaceRoot}/coverage/libs/shared/types"],
+      "outputs": [
+        "{workspaceRoot}/coverage/libs/shared/types"
+      ],
       "options": {
         "jestConfig": "libs/shared/types/jest.config.cts",
         "passWithNoTests": true

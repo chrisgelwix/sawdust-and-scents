@@ -15,7 +15,8 @@ import { ConfigService } from '@nestjs/config';
         password: config.get<string>('POSTGRES_PASSWORD'),
         database: config.get<string>('POSTGRES_DB'),
         autoLoadEntities: true,
-        synchronize: config.get<string>('NODE_ENV') !== 'production',
+        synchronize:
+          config.get<string>('NODE_ENV') !== 'production',
       }),
     }),
     MongooseModule.forRootAsync({

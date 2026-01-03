@@ -22,7 +22,7 @@ import { DatabaseModule } from '../modules/database/database.module';
     CartModule,
     UsersModule,
     PaymentsModule,
-    DatabaseModule
+    DatabaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],
