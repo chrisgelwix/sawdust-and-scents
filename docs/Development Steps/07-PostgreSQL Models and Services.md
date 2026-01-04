@@ -1,10 +1,14 @@
 # Step 07: PostgreSQL Models and Services
 
-## 1. The "Why" Behind This Step: Structuring Business Logic
+## 1. The "Why" Behind This Step: The Sovereign Vault
 
 We have reached the "Soul" of the application. In the previous steps, we built the "Plumbing" (Databases) and the "Security" (Keycloak). Now we are defining the **Domain Models**—the actual things our business cares about: **Users** and **Orders**.
 
-We use **PostgreSQL** for this data because it is transactional. If a customer pays for an order, we cannot afford for that data to be "eventually" consistent or "flexible." It must be perfect, relational, and durable.
+We use **PostgreSQL** for this data because it is transactional. 
+**The Analogy**: Imagine a bank vault. 
+- You don't want your balance to be "mostly correct" or "flexible." 
+- If you move $100 from Savings to Checking, it must happen in both places perfectly, or not at all.
+- PostgreSQL provides this "ACID" (Atomicity, Consistency, Isolation, Durability) guarantee for our critical financial data.
 
 ---
 
@@ -13,15 +17,18 @@ We use **PostgreSQL** for this data because it is transactional. If a customer p
 #### 2.1 Entities (The Blueprint)
 
 In TypeORM, an **Entity** is a class that maps to a database table.
-
 - **The Concept**: Instead of thinking in "Rows and Columns," you think in "Properties and Objects." The Entity is the "Single Source of Truth" for what an Order looks like.
 
 #### 2.2 Relational Mapping
 
 SQL databases excel at linking data. We use two main types of relationships:
-
 - **One-to-Many (`OneToMany`)**: One User can place many Orders.
 - **Many-to-One (`ManyToOne`)**: Many Orders can belong to one single User.
+
+#### 2.3 Repositories (The Clerk)
+
+- **Definition**: A **Repository** is a special class provided by TypeORM that handles the "talking" to the database.
+- **The Logic**: Instead of writing complex SQL queries like `SELECT * FROM users WHERE id = ...`, you just use a Repository and say `userRepo.findOne(id)`. It is the clerk that goes into the vault and gets what you need.
 
 ---
 
@@ -30,8 +37,6 @@ SQL databases excel at linking data. We use two main types of relationships:
 ### Step 3.1: Create the User Entity
 
 Create `apps/api/src/modules/users/entities/user.entity.ts`. 
-
-**Note on `!`**: We use the `!` (Definite Assignment Assertion) because TypeScript's strict mode requires all properties to be initialized in the constructor. However, TypeORM injects these values automatically from the database.
 
 ```typescript
 import {
@@ -104,7 +109,7 @@ export class Order {
 
 ### Step 3.3: Create the Order Item Entity
 
-Orders are made of individual items. Create `apps/api/src/modules/orders/entities/order-item.entity.ts`.
+Create `apps/api/src/modules/orders/entities/order-item.entity.ts`.
 
 ```typescript
 import {
@@ -137,10 +142,40 @@ export class OrderItem {
 }
 ```
 
-### Step 3.4: Register Entities in the Users Module
+### Step 3.4: Create the Orders Service
 
-For TypeORM to "see" these entities, they must be registered in their respective modules. Update `apps/api/src/modules/users/users.module.ts`.
+Now we need a service to actually save orders. Create `apps/api/src/modules/orders/orders.service.ts`.
 
+```typescript
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Order } from './entities/order.entity';
+
+@Injectable()
+export class OrdersService {
+  constructor(
+    @InjectRepository(Order)
+    private ordersRepository: Repository<Order>
+  ) {}
+
+  async create(orderData: Partial<Order>): Promise<Order> {
+    const newOrder = this.ordersRepository.create(orderData);
+    return this.ordersRepository.save(newOrder);
+  }
+
+  async findByUser(userId: string): Promise<Order[]> {
+    return this.ordersRepository.find({
+      where: { user: { id: userId } },
+      relations: ['items'],
+    });
+  }
+}
+```
+
+### Step 3.5: Register Everything in the Modules
+
+Update `apps/api/src/modules/users/users.module.ts`:
 ```typescript
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -153,19 +188,18 @@ import { User } from './entities/user.entity';
 export class UsersModule {}
 ```
 
-### Step 3.5: Register Entities in the Orders Module
-
-Update `apps/api/src/modules/orders/orders.module.ts`.
-
+Update `apps/api/src/modules/orders/orders.module.ts`:
 ```typescript
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
+import { OrdersService } from './orders.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Order, OrderItem])],
-  exports: [TypeOrmModule],
+  providers: [OrdersService],
+  exports: [OrdersService, TypeOrmModule],
 })
 export class OrdersModule {}
 ```
@@ -174,30 +208,21 @@ export class OrdersModule {}
 
 ## 4. Deep Dive: Code Keyword Breakdown
 
-#### 4.1 `@Entity('orders')`
+#### 4.1 `@PrimaryGeneratedColumn('uuid')`
 
-- **Definition**: A class decorator from TypeORM.
-- **The Logic**: It tells the database: "Create a table called 'orders' based on the properties of this class."
+- **The Logic**: UUIDs (Universally Unique Identifiers) are long, random strings. Unlike simple numbers (1, 2, 3), they are impossible to guess. This protects your users from people trying to "guess" order URLs.
 
-#### 4.2 `@PrimaryGeneratedColumn('uuid')`
+#### 4.2 `relations: ['items']` (In the Service)
 
-- **Definition**: Marks the primary unique key for the table.
-- **The Logic**: By passing `'uuid'`, we tell PostgreSQL to automatically generate a long, random string. This is much safer than using simple numbers (1, 2, 3) because it prevents people from guessing order IDs.
+- **The Logic**: SQL databases are "Lazy" by default. If you ask for an Order, it won't give you the items unless you explicitly ask for them. Using `relations` tells TypeORM to perform a "JOIN" and get the items at the same time.
 
-#### 4.3 `@ManyToOne` / `@OneToMany`
+#### 4.3 `forFeature([Entity])`
 
-- **Definition**: Decorators that define a **Relationship**.
-- **The Logic**: These tell TypeORM how to connect tables. `ManyToOne` on the Order means many orders can point back to one User. `OneToMany` on the User means the user can have an array of many Orders.
+- **The Logic**: This is how you "connect" your blueprints to your module. It makes the **Repository** for that entity available for injection into your services.
 
-#### 4.4 `forFeature([Entity])`
+#### 4.4 `cascade: true`
 
-- **Definition**: A method used to register entities within a specific module.
-- **The Logic**: While `forRoot` (in DatabaseModule) sets up the connection to the database, `forFeature` tells the specific module which tables it is allowed to manage.
-
-#### 4.5 `cascade: true`
-
-- **Definition**: A configuration for relationships.
-- **The Logic**: When you save an Order, it usually has multiple Items. With `cascade: true`, you don't have to save each item individually. You just save the Order, and TypeORM will "Cascade" the save command to all the Items automatically.
+- **The Logic**: When you save an Order, you don't want to manually save 10 individual Items. `cascade` tells TypeORM: "If I save the parent (Order), automatically save all the children (Items) too."
 
 ---
 
@@ -206,16 +231,13 @@ export class OrdersModule {}
 ### 5.1 The Table Check
 
 1.  **Run the API**: `npx nx serve api`.
-2.  **Open DBeaver**: Connect to your PostgreSQL container.
-3.  **Refresh**: Right-click on the "Tables" folder and select **Refresh**.
-
-- **The Lesson**: You will see that TypeORM has automatically generated the tables for you. This is the power of the ORM—it manages your schema for you.
+2.  **Open DBeaver**: Refresh your Tables list.
+3.  **The Result**: You should see `users`, `orders`, and `order_items` tables.
 
 ### 6. Checklist for Success
 
-- [ ] **UUID**: Is `PrimaryGeneratedColumn('uuid')` used for all IDs?
-- [ ] **Strict Mode**: Did you use the `!` operator for all entity properties?
-- [ ] **Registration**: Are all 3 entities registered in the `forFeature` arrays of their modules?
-- [ ] **DBeaver**: Do you see the `users`, `orders`, and `order_items` tables?
+- [ ] **UUID**: Are your IDs secure random strings?
+- [ ] **Cascade**: Will your items save automatically when the order is saved?
+- [ ] **Services**: Did you create the `OrdersService` so the Cart can use it later?
 
 **Moving Forward**: We have our "Transaction" storage ready. Now we need our flexible "Catalog" storage in MongoDB. We'll build the **MongoDB Models and Services** next.
