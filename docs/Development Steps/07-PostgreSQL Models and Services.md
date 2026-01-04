@@ -102,6 +102,12 @@ export class Order {
   @Column({ default: 'pending' })
   status!: string;
 
+  @Column({ nullable: true })
+  trackingNumber?: string;
+
+  @Column({ nullable: true })
+  shippingLabelUrl?: string;
+
   @CreateDateColumn()
   createdAt!: Date;
 }

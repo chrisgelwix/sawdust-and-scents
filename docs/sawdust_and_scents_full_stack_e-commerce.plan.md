@@ -63,12 +63,18 @@ todos:
       - keycloak-auth
       - cart-checkout-services
   - id: management-backend
-    content: Create management dashboard backend module with role-based access, dashboard service, inventory management, analytics, and audit logging
+    content: Create management dashboard backend module with role-based access, dashboard service, inventory management, analytics, audit logging, and integrations with ADP for HR/Payroll
     status: pending
     dependencies:
       - keycloak-auth
       - postgresql-models
       - mongodb-models
+  - id: external-integrations
+    content: Integrate Shippo API for order shipping and tracking, and ADP API for HR/Payroll management
+    status: pending
+    dependencies:
+      - cart-checkout-services
+      - management-backend
   - id: chatbot-backend
     content: Create chatbot backend module with message processing, conversation history, and optional AI integration
     status: pending
@@ -257,32 +263,27 @@ The application will be structured as an Nx monorepo with:
     - User profile endpoints
     - Token refresh endpoint
 
-11. **Product Endpoints (Step 11)**
-    - GET `/products` - List products with pagination, filtering, search
-    - GET `/products/:id` - Product details
-    - GET `/products/categories` - List categories
-    - POST `/products` - Create product (admin only)
-    - PUT `/products/:id` - Update product (admin only)
-    - DELETE `/products/:id` - Delete product (admin only)
+11. **Product Catalog & Inventory Management (Step 11)**
+    - GET `/products` - List products
+    - POST `/admin/products` - Create product (Admin)
+    - PUT `/admin/products/:id` - Update product (Admin)
+    - Inventory Service with atomic stock updates (`$inc`)
 
-12. **Cart Endpoints (Step 12)**
-    - GET `/cart` - Get user cart
-    - POST `/cart/items` - Add item to cart
-    - PUT `/cart/items/:id` - Update cart item quantity
-    - DELETE `/cart/items/:id` - Remove cart item
-    - DELETE `/cart` - Clear cart
+12. **Order Fulfillment & Shippo Integration (Step 12)**
+    - POST `/checkout` - Create order
+    - POST `/orders/:id/ship` - Calculate rates via **Shippo**
+    - POST `/orders/:id/label` - Purchase shipping label
 
-13. **Order & Checkout Endpoints (Step 13)**
-    - POST `/checkout` - Create order from cart
-    - GET `/orders` - List user orders
-    - GET `/orders/:id` - Order details
-    - PUT `/orders/:id/status` - Update order status (admin)
-    - POST `/orders/:id/payment` - Process payment
+13. **Admin Management & ADP HR Integration (Step 13)**
+    - GET `/management/dashboard/overview` - Combined metrics
+    - GET `/management/hr/payroll` - **ADP API** integration
+    - User maintenance and role-based access
 
 14. **Admin Endpoints (Step 14)**
     - GET `/admin/products` - Manage products
     - GET `/admin/orders` - Manage all orders
     - GET `/admin/analytics` - Sales analytics
+    - GET `/admin/hr` - Access **ADP API** for employee data and payroll
 
 15. **Management Dashboard Endpoints (Step 15)** (Auth-protected, Admin/Manager roles only)
     - GET `/management/dashboard` - Get dashboard overview (sales, orders, inventory metrics)
@@ -294,6 +295,7 @@ The application will be structured as an Nx monorepo with:
     - PUT `/management/orders/:id/status` - Update order status
     - GET `/management/reports` - Generate and download reports (CSV, PDF)
     - GET `/management/audit-logs` - Get audit logs for management actions
+    - GET `/management/hr/payroll` - HR/Payroll management via **ADP Integration**
 
 16. **Chatbot Endpoints (Step 16)**
     - POST `/chatbot/message` - Send message to chatbot and get response
