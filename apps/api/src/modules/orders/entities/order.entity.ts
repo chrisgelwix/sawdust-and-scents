@@ -1,6 +1,7 @@
 import {
     Entity,
     Column,
+    Generated,
     PrimaryGeneratedColumn,
     CreateDateColumn,
     ManyToOne,
@@ -22,11 +23,21 @@ export class Order {
     })
     items!: OrderItem[];
 
+    @Column()
+    @Generated('increment')
+    orderNumber!: number;
+
     @Column({ type: 'decimal', precision: 10, scale: 2})
     totalAmount!: number;
 
     @Column({ default: 'pending' })
     status!: string;
+
+    @Column({ nullable: true })
+    trackingNumber?: string;
+
+    @Column({ nullable: true })
+    shippingLabbelUrl?: string;
 
     @CreateDateColumn()
     createdAt!: Date;
