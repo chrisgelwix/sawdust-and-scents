@@ -36,7 +36,7 @@ The **Cart and Checkout** services are the "Master Orchestrator" (or the Head Ch
 
 ## 3. Step-by-Step Implementation
 
-### Step 3.1: Create the Cart Service
+###t Step 3.1: Create the Cart Service
 
 Create `apps/api/src/modules/cart/cart.service.ts`. This service manages the "in-memory" shopping list for each user.
 
