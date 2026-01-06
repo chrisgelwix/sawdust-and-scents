@@ -13,6 +13,12 @@ An e-commerce store is only as good as what it has in stock. In the previous ste
 
 ## 2. Core Concepts & Definitions
 
+#### 2.0 Keycloak Pre-requisites (Role Setup)
+Before you can test the code in this step, ensure you have completed the manual configuration in **Step 06b**:
+- **Role Created**: `worker` must exist in the `sdas-realm`.
+- **User Created**: You must have a user account assigned the `worker` role.
+- **Why?**: The `@Roles({ roles: ['realm:worker'] })` decorator in our code checks for this specific name. If it's missing in Keycloak, you will always get a 403 error.
+
 #### 2.1 Atomic Updates
 
 - **Definition**: An operation that happens completely or not at all.

@@ -11,6 +11,12 @@ Administrators (Step 14) need deep access to every record. **Managers**, however
 
 ## 2. Core Concepts & Definitions
 
+#### 2.0 Keycloak Pre-requisites (Manager Role)
+In this step, we introduce a new persona: the **Manager**.
+- **Role Created**: `manager` must exist in Keycloak.
+- **Hierarchical Access**: We will configure this API to allow *either* `admin` OR `manager` roles to access it. 
+- **Setup Check**: Ensure you've followed **Step 06b** to create these roles before proceeding.
+
 #### 2.1 Metrics & KPIs (Key Performance Indicators)
 
 - **Definition**: Quantitative values used to measure success.

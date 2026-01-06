@@ -11,6 +11,12 @@ Every professional e-commerce platform needs a "Back Office." While customers us
 
 ## 2. Core Concepts & Definitions
 
+#### 2.0 Keycloak Pre-requisites (Admin Role)
+As defined in **Step 06b**, the endpoints in this module are protected by the highest level of security:
+- **Role Created**: `admin` must exist in Keycloak.
+- **User Assigned**: Your test account must have the `admin` role assigned in the **Role Mapping** tab.
+- **The Concept**: This ensures that even a standard worker cannot access sensitive HR or system-wide order summaries.
+
 #### 2.1 API Versioning & Prefixes
 
 - **The Logic**: We use the `/admin` prefix to separate management logic from public logic. This allows us to apply different security rules (like "Admin-Only") to an entire group of URLs at once.

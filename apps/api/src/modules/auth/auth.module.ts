@@ -7,6 +7,7 @@ import {
   AuthGuard,
 } from 'nest-keycloak-connect';
 import { ConfigService } from '@nestjs/config';
+import { AuthController } from './auth.controller';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ConfigService } from '@nestjs/config';
       }),
     }),
   ],
+  controllers: [AuthController],
   providers: [
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: ResourceGuard },

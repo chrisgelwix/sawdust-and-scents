@@ -16,28 +16,43 @@ We have integrated Keycloak (the Security Engine), but we haven't given our user
 
 #### 2.1 REST Controllers (The Traffic Cop)
 
-A **Controller** acts as a traffic cop. It listens for specific types of requests (GET, POST, DELETE) and directs them to the correct business logic. In NestJS, we use decorators to define these routes effortlessly.
+A **Controller** acts as a traffic cop. It listens for specific types of requests (GET, POST, DELETE) and directs them to the correct business logic.
 
 #### 2.2 JWT Extraction (Unwrapping the ID)
 
-When a user is logged in, their browser sends a `Bearer <token>` in the "Authorization" header. It looks like a long string of gibberish. Our Controller needs to "un-wrap" (decode) this token to find the user's real information, like their email and unique ID.
+When a user is logged in, their browser sends a `Bearer <token>` in the header. Our Controller needs to "un-wrap" (decode) this token to find the user's real information.
 
-#### 2.3 Swagger Documentation (The User Manual)
+#### 2.3 Custom Decorators (The Shortcut)
 
-We use Swagger decorators to make our API "Self-Documenting." This ensures that anyone who looks at our `/docs` page knows exactly which routes are secure and what data they return.
+Instead of manually digging through the "Request" object every time we need a user ID, we create a **Custom Decorator**. It acts as a "Direct Pipe" to the user's data.
 
 ---
 
 ## 3. Step-by-Step Implementation
 
-### Step 3.1: Generate the Auth Controller
+### Step 3.1: Create the User Decorator
+
+Create `apps/api/src/modules/auth/decorators/user.decorator.ts`. This is the shortcut that extracts the user from the JWT.
+
+```typescript
+import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+
+export const AuthenticatedUser = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    return request.user; // Keycloak bouncer puts the user info here
+  },
+);
+```
+
+### Step 3.2: Generate the Auth Controller
 
 Run this command to create the file structure:
 ```bash
-npx nx generate @nx/nest:controller apps/api/src/modules/auth/auth
+npx nx generate @nx/nest:controller apps/api/src/modules/auth/auth --no-interactive
 ```
 
-### Step 3.2: Implement the Profile Endpoint
+### Step 3.3: Implement the Profile Endpoint
 
 Update `apps/api/src/modules/auth/auth.controller.ts`.
 
@@ -70,35 +85,99 @@ export class AuthController {
 }
 ```
 
+### Step 3.4: Register the Controller in the Auth Module
+
+For NestJS to recognize your new routes, the controller must be listed in the module. Update `apps/api/src/modules/auth/auth.module.ts`.
+
+```typescript
+import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import {
+  KeycloakConnectModule,
+  ResourceGuard,
+  RoleGuard,
+  AuthGuard,
+} from 'nest-keycloak-connect';
+import { ConfigService } from '@nestjs/config';
+import { AuthController } from './auth.controller'; // Add this import
+
+@Module({
+  imports: [
+    KeycloakConnectModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        authServerUrl: config.get('KEYCLOAK_URL'),
+        realm: config.get('KEYCLOAK_REALM'),
+        clientId: config.get('KEYCLOAK_CLIENT_ID'),
+        secret: config.get('KEYCLOAK_CLIENT_SECRET') || '',
+        cookieKey: 'KEYCLOAK_JWT',
+        logLevels: ['verbose'],
+        useNestLogger: true,
+      }),
+    }),
+  ],
+  controllers: [AuthController], // Add this line
+  providers: [
+    { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_GUARD, useClass: ResourceGuard },
+    { provide: APP_GUARD, useClass: RoleGuard },
+  ],
+})
+export class AuthModule {}
+```
+
 ---
 
 ## 4. Deep Dive: Code Keyword Breakdown
 
-#### 4.1 `@Controller('auth')`
+#### 4.1 `createParamDecorator`
 
-- **The Logic**: It tells NestJS: "Any request starting with `/auth` should be handled by this class." It's like an address for your API. Because we have a global prefix of `api`, the final address is `http://localhost:3000/api/auth`.
+- **The Logic**: A NestJS utility used to create custom `@Decorators`. It allows you to "Peek" inside the incoming HTTP Request and grab exactly what you want (like the User object) before the code reaches your function.
 
-#### 4.2 `@Get('profile')`
+#### 4.2 `@AuthenticatedUser()`
 
-- **The Logic**: It defines the final part of the URL. This function will run whenever someone makes a `GET` request to `/api/auth/profile`.
+- **The Logic**: This is your custom shortcut. It finds the user data in the JWT and "Injects" it directly into your function.
 
-#### 4.3 `@AuthenticatedUser()` (The Shortcut)
+#### 4.3 `sub` (The Subject)
 
-- **The Logic**: Normally, you'd have to write 5 lines of code to dig through the "Request" object to find the user's ID. This decorator is a "Shortcut." It finds the user data in the JWT and "Injects" it directly into your function as a variable.
-
-#### 4.4 `sub` (The Subject)
-
-- **The Logic**: In a JWT, the `sub` is the **Subject**. It is the unique, permanent ID for that user inside Keycloak. You should always use this ID (instead of an email) to link users to their orders, because emails can change, but the `sub` is forever.
-
-#### 4.5 `@ApiBearerAuth()`
-
-- **The Logic**: This is purely for the Documentation. It adds a "Lock" icon to this route in Swagger UI, signaling to other developers that they need to be logged in to test this endpoint.
+- **The Logic**: In a JWT, the `sub` is the **Subject**. It is the unique, permanent ID for that user inside Keycloak. You should always use this ID (instead of an email) to link users to their orders.
 
 ---
 
 ## 5. Verification & Learning Check
 
-### 5.1 The Token Test
+### 5.1 How to get a Test Token
+Before you can test the `/auth/profile` endpoint, you need a **JWT Token**. Since we haven't built the login page yet, we use a "Direct Access Grant" (a shortcut for developers).
+
+1.  **Open your Terminal**.
+2.  **Run this Command** (Replace `YOUR_CLIENT_SECRET` with the one from your `.env.local`):
+
+```bash
+# Windows (PowerShell)
+$token = curl.exe -X POST "http://localhost:8080/realms/sdas-realm/protocol/openid-connect/token" `
+  -H "Content-Type: application/x-www-form-urlencoded" `
+  -d "grant_type=password" `
+  -d "client_id=sdas-api" `
+  -d "client_secret=YOUR_CLIENT_SECRET" `
+  -d "username=chris_worker" `
+  -d "password=your_password"
+
+# To see just the token:
+($token | ConvertFrom-Json).access_token
+```
+
+```bash
+# Mac/Linux (Bash)
+curl -X POST "http://localhost:8080/realms/sdas-realm/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password" \
+  -d "client_id=sdas-api" \
+  -d "client_secret=YOUR_CLIENT_SECRET" \
+  -d "username=chris_worker" \
+  -d "password=your_password" | jq .access_token
+```
+
+### 5.2 The Token Test
 
 1.  **Restart the API**: `npx nx serve api`.
 2.  **Authorize**: Open `/docs`, click "Authorize," and paste a valid Keycloak token.
@@ -108,9 +187,9 @@ export class AuthController {
 
 ### 6. Checklist for Success
 
+- [ ] **Decorator**: Did you create `user.decorator.ts`?
 - [ ] **Controller**: Is it registered in the `AuthModule`?
 - [ ] **Lock Icon**: Do you see the "Lock" on your routes in Swagger?
 - [ ] **Identity**: Does the response include the `sub` ID?
-- [ ] **Analogy**: Can you explain why the Controller is the "Front Door"?
 
 **Congratulations!** You have built a secure, dual-database, monorepo-based foundation for a professional e-commerce platform.

@@ -15,6 +15,11 @@ In Step 06, we locked the Backend doors with Keycloak. Now, our Frontend needs t
 
 ## 2. Core Concepts & Definitions
 
+#### 2.0 Keycloak Pre-requisites (CORS & Redirects)
+For the Frontend to talk to Keycloak, you must update your `sdas-api` client settings in the Keycloak Admin Console (from **Step 06b**):
+- **Web Origins**: Set to `http://localhost:4200` (or `*` for development). This allows "CORS" so the browser doesn't block the login request.
+- **Valid Redirect URIs**: Set to `http://localhost:4200/*`. This tells Keycloak where it is safe to send the user back to after they log in.
+
 #### 2.1 The Silent Refresh
 
 - **Definition**: Automatically getting a new key card before the old one expires.
