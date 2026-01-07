@@ -124,3 +124,4 @@ export class ManagementController {
 
 **Moving Forward**: We have the entire backend ready—Security, Databases, Shipping, and HR! Now it's time to build the **User Interface (React)** so the world can see what we've built.
 
+

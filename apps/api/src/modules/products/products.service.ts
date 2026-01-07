@@ -21,4 +21,8 @@ export class ProductsService {
         const newProduct = new this.productModel(productData);
         return newProduct.save();
     }
+
+    async update(id: string, updateData: Partial<Product>): Promise<Product | null> {
+        return this.productModel.findByIdAndUpdate(id, updateData, {new: true}).exec();
+    }
 }

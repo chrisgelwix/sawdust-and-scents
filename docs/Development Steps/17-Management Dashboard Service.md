@@ -97,3 +97,4 @@ export class ManagementService {
 
 **Moving Forward**: The business brain is complete. Now let's build the **Chatbot Service** logic to make Rowan more than just a simple responder.
 
+

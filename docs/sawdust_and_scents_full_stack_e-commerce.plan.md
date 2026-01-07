@@ -150,6 +150,21 @@ todos:
     dependencies:
       - backend-endpoints
       - playwright-e2e
+  - id: security-scans
+    content: Integrate Snyk (SCA/SAST) and StackHawk (DAST) into CI/CD pipeline
+    status: pending
+    dependencies:
+      - ci-cd-pipeline
+  - id: cloud-deployment
+    content: Set up AWS infrastructure (ECS/EKS, RDS, DocumentDB) using Terraform/CDK and configure deployment
+    status: pending
+    dependencies:
+      - production-readiness
+  - id: advanced-testing
+    content: Implement NIST security testing, automated API testing, and create a manual testing plan
+    status: pending
+    dependencies:
+      - production-readiness
 ---
 
 # Sawdust & Scents - Full Stack E-commerce Application
@@ -447,6 +462,26 @@ The application will be structured as an Nx monorepo with:
     - Health check endpoints
     - Management dashboard audit logging
     - Chatbot rate limiting and abuse prevention
+
+### Phase 10: Security, Advanced Testing & Cloud Deployment
+
+32. **CI/CD Security Integration (Step 32)**
+    - Integrate **Snyk** for Software Composition Analysis (SCA) and Static Analysis (SAST)
+    - Integrate **StackHawk** for Dynamic Application Security Testing (DAST)
+    - Configure automated security gates in GitHub Actions
+
+33. **Advanced Testing & Compliance (Step 33)**
+    - Implement automated **API Testing** (Supertest/Postman)
+    - Perform **NIST-aligned security testing** and hardening (OS/DB/API)
+    - Develop a **Manual Testing Plan** for UX and edge cases
+
+34. **AWS Cloud Infrastructure & Deployment (Step 34)**
+    - Infrastructure as Code (IaC) with **Terraform or AWS CDK**
+    - Set up **AWS ECS/EKS** for container orchestration
+    - Configure **AWS RDS (PostgreSQL)** and **AWS DocumentDB (MongoDB)**
+    - Set up **AWS ElastiCache** for performance (optional)
+    - Configure **AWS CloudFront** and **S3** for frontend hosting
+    - Set up **AWS Secrets Manager** for environment variables
 
 ## File Structure
 

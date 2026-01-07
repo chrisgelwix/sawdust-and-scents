@@ -110,3 +110,4 @@ export default App;
 
 **Moving Forward**: The storefront is open! Now we need to hire the bouncer for the front door. We'll integrate **Keycloak** into the frontend next.
 
+

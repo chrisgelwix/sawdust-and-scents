@@ -100,3 +100,4 @@ Open your `.env.local` file.
 
 **Moving Forward**: Your security infrastructure is now physically built. You can now use the `curl` command to get your first token and test your API!
 
+

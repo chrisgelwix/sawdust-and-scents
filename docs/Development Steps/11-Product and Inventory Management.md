@@ -72,6 +72,22 @@ export class InventoryService {
 }
 ```
 
+### Step 3.1b: Enhance the Products Service (Update Logic)
+
+In **Step 08**, we created a basic `ProductsService` that could only find and create products. To support our management dashboard, we need to add a method that allows workers to update product details (like name, price, or category).
+
+Update `apps/api/src/modules/products/products.service.ts` to include the `update` method.
+
+```typescript
+  // ... existing methods (findAll, findOne, create) ...
+
+  async update(id: string, updateData: Partial<Product>): Promise<Product | null> {
+    return this.productModel
+      .findByIdAndUpdate(id, updateData, { new: true })
+      .exec();
+  }
+```
+
 ### Step 3.2: Create the Products Controller (Combined)
 
 Create `apps/api/src/modules/products/products.controller.ts`. This handles both public and worker actions.
@@ -110,9 +126,34 @@ export class ProductsController {
   @Put(':id')
   @Roles({ roles: ['realm:worker', 'realm:admin'] })
   update(@Param('id') id: string, @Body() updateData: Partial<Product>) {
-    // Logic for updating product details
+    return this.productsService.update(id, updateData);
   }
 }
+```
+
+### Step 3.3: Register Controller and Services in the Module
+
+For NestJS to "see" your new controller and service, they must be registered in the `ProductsModule`. 
+
+Update `apps/api/src/modules/products/products.module.ts`:
+
+```typescript
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { ProductsService } from './products.service';
+import { ProductsController } from './products.controller';
+import { InventoryService } from './inventory.service';
+import { Product, ProductSchema } from './schemas/product.schema';
+
+@Module({
+  imports: [
+    MongooseModule.forFeature([{ name: Product.name, schema: ProductSchema }]),
+  ],
+  controllers: [ProductsController],
+  providers: [ProductsService, InventoryService],
+  exports: [ProductsService, InventoryService, MongooseModule],
+})
+export class ProductsModule {}
 ```
 
 ---
@@ -131,6 +172,10 @@ export class ProductsController {
 #### 4.3 `attributes.stock`
 
 - **The Logic**: Because our MongoDB schema is flexible (using the `attributes` object), we can store stock levels inside that object. This allows us to have different inventory rules for candles (by weight) vs signs (by dimensions).
+
+#### 4.4 `{ new: true }` (The Return Behavior)
+
+- **The Logic**: When using `findByIdAndUpdate`, Mongoose defaults to returning the document as it was *before* the changes were made. By setting `{ new: true }`, we tell Mongoose to return the freshly updated document. This is critical for the frontend so it can immediately display the new data.
 
 ---
 
