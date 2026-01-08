@@ -30,9 +30,45 @@ In this step, we introduce a new persona: the **Manager**.
 
 ## 3. Step-by-Step Implementation
 
-### Step 3.1: Create the Management Controller
+### Step 3.1: Create the Management Service
 
-Create `apps/api/src/modules/management/management.controller.ts`.
+The Service is the "Brain" that gathers data from other modules. Create `apps/api/src/modules/management/management.service.ts`.
+
+```typescript
+import { Injectable } from '@nestjs/common';
+import { OrdersService } from '../orders/orders.service';
+import { ProductsService } from '../products/products.service';
+
+@Injectable()
+export class ManagementService {
+  constructor(
+    private ordersService: OrdersService,
+    private productsService: ProductsService
+  ) {}
+
+  async getOverview() {
+    const orders = await this.ordersService.findAll();
+    const products = await this.productsService.findAll();
+
+    return {
+      totalOrders: orders.length,
+      totalRevenue: orders.reduce((acc, order) => acc + Number(order.totalAmount), 0),
+      lowStockCount: products.filter(p => (p.attributes['stock'] as number) < 10).length,
+    };
+  }
+
+  async getLowStockAlerts() {
+    const products = await this.productsService.findAll();
+    return products.filter(p => (p.attributes['stock'] as number) < 10);
+  }
+}
+```
+
+### Step 3.2: Create the Management Controller
+
+Create `apps/api/src/modules/management/management.controller.ts`. 
+
+**Note**: After creating these files, remember to add `ManagementService` to the `providers` array and `ManagementController` to the `controllers` array in your `ManagementModule`.
 
 ```typescript
 import { Controller, Get } from '@nestjs/common';

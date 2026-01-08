@@ -33,6 +33,8 @@ As defined in **Step 06b**, the endpoints in this module are protected by the hi
 
 Create `apps/api/src/modules/management/admin.controller.ts`. 
 
+**Note**: After creating this file, you must add `AdminController` to the `controllers` array in your `ManagementModule` (created in Step 13).
+
 ```typescript
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { Roles } from 'nest-keycloak-connect';

@@ -61,7 +61,34 @@ export class HRService {
 }
 ```
 
-### Step 3.2: Create the Admin Dashboard Controller
+### Step 3.2: Create the Management Module
+
+To ensure all these new services and controllers work together, we must register them in a dedicated module. 
+
+Create `apps/api/src/modules/management/management.module.ts`.
+
+**Crucial Step**: Since the Management Dashboard needs to talk to the Products and Orders databases, we must **import** those modules here.
+
+```typescript
+import { Module } from '@nestjs/common';
+import { HRService } from './hr.service';
+import { ManagementController } from './management.controller';
+import { ProductsModule } from '../products/products.module';
+import { OrdersModule } from '../orders/orders.module';
+
+@Module({
+  imports: [
+    ProductsModule, // Gives access to InventoryService
+    OrdersModule,   // Gives access to OrdersService
+  ],
+  controllers: [ManagementController],
+  providers: [HRService],
+  exports: [HRService],
+})
+export class ManagementModule {}
+```
+
+### Step 3.3: Create the Admin Dashboard Controller
 
 This controller combines Inventory, User Maint, and HR. Create `apps/api/src/modules/management/management.controller.ts`.
 

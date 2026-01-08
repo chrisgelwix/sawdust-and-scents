@@ -77,8 +77,10 @@
     "react-router-dom": "6.29.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.0",
+    "shippo": "^2.15.0",
     "swagger-ui-express": "^5.0.1",
-    "typeorm": "^0.3.28"
+    "typeorm": "^0.3.28",
+    "zod": "^4.3.5"
   },
   "scripts": {
     "prepare": "husky install",

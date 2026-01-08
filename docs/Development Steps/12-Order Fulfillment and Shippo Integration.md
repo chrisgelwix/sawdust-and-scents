@@ -40,45 +40,244 @@ npm install shippo
 
 Create `apps/api/src/modules/orders/shipping.service.ts`. This service will act as our "Post Office Clerk."
 
+First, ensure you have added your warehouse address to your `.env.local` file:
+
+```text
+# Warehouse Address (Shippo address_from)
+WAREHOUSE_NAME="Sawdust and Scents Warehouse"
+WAREHOUSE_STREET="123 Woodworker Lane"
+WAREHOUSE_CITY="Scentsville"
+WAREHOUSE_STATE="CA"
+WAREHOUSE_ZIP="90210"
+WAREHOUSE_COUNTRY="US"
+WAREHOUSE_PHONE="555-0123"
+```
+
+Now, implement the service using the **Shippo v2.x SDK**. 
+
+**Important Note on Imports**: Ensure you use the standard TypeScript import `import { Shippo } from 'shippo';`. Using `require('shippo')` can lead to `TypeError: Shippo is not a function` in this environment.
+
 ```typescript
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-const shippo = require('shippo');
+import { Shippo } from 'shippo';
 
 @Injectable()
 export class ShippingService {
-  private shippoClient;
+  private shippoClient: any;
+  private warehouseAddress: any;
 
   constructor(private config: ConfigService) {
-    // Initialize the Shippo client with your private API key
-    this.shippoClient = shippo(this.config.get('SHIPPO_API_KEY'));
+    // Correctly initialize the Shippo client for version 2.x
+    this.shippoClient = new Shippo({
+      apiKeyHeader: this.config.get('SHIPPO_API_KEY') as string,
+    });
+
+    this.warehouseAddress = {
+      name: this.config.get('WAREHOUSE_NAME'),
+      street1: this.config.get('WAREHOUSE_STREET'),
+      city: this.config.get('WAREHOUSE_CITY'),
+      state: this.config.get('WAREHOUSE_STATE'),
+      zip: this.config.get('WAREHOUSE_ZIP'),
+      country: this.config.get('WAREHOUSE_COUNTRY'),
+      phone: this.config.get('WAREHOUSE_PHONE'),
+    };
   }
 
   async createShipment(orderData: any) {
-    // 1. Send order details to Shippo
-    const shipment = await this.shippoClient.shipment.create({
-      address_from: { /* Your Warehouse Address */ },
-      address_to: orderData.shippingAddress,
-      parcels: [{ length: 10, width: 10, height: 10, distance_unit: 'in', weight: 2, mass_unit: 'lb' }],
-      async: false,
+    // 1. Build the shipping address from the order
+    const addressTo = {
+      name: orderData.shippingName || 'Customer',
+      street1: orderData.shippingStreet1 || '123 Main St',
+      city: orderData.shippingCity || 'Anytown',
+      state: orderData.shippingState || 'CA',
+      zip: orderData.shippingZip || '90210',
+      country: orderData.shippingCountry || 'US',
+      phone: orderData.shippingPhone || '555-0000',
+    };
+
+    // 2. Send order details to Shippo
+    const shipment = await this.shippoClient.shipments.create({
+      addressFrom: this.warehouseAddress,
+      addressTo,
+      parcels: [
+        {
+          length: '10',
+          width: '10',
+          height: '10',
+          distanceUnit: 'in',
+          weight: '2',
+          massUnit: 'lb',
+        },
+      ],
     });
 
-    // 2. Return the rates found for this shipment
+    // 3. Return the rates found for this shipment
     return shipment.rates;
   }
 
   async purchaseLabel(rateId: string) {
     // 3. Buy the shipping label for the chosen rate
-    return this.shippoClient.transaction.create({
+    return this.shippoClient.transactions.create({
       rate: rateId,
-      label_file_type: 'PDF',
+      labelFileType: 'PDF',
       async: false,
     });
   }
 
   async getTrackingStatus(carrier: string, trackingNumber: string) {
     // 4. Ask Shippo for the current location of the package
-    return this.shippoClient.track.get_status(carrier, trackingNumber);
+    return this.shippoClient.trackingStatus.get(trackingNumber, carrier);
+  }
+}
+```
+
+### Step 3.3: Add Shipping Address Fields to Order Entity
+
+Update `apps/api/src/modules/orders/entities/order.entity.ts` to include shipping address fields:
+
+```typescript
+import {
+    Entity,
+    Column,
+    Generated,
+    PrimaryGeneratedColumn,
+    CreateDateColumn,
+    ManyToOne,
+    OneToMany,
+} from 'typeorm';
+import { User } from '../../users/entities/user.entity';
+import { OrderItem } from './order-item.entity';
+
+@Entity('orders')
+export class Order {
+    @PrimaryGeneratedColumn('uuid')
+    id!: string;
+
+    @ManyToOne(() => User, (user) => user.orders)
+    user!: User;
+
+    @OneToMany(() => OrderItem, (item) => item.order, {
+        cascade: true
+    })
+    items!: OrderItem[];
+
+    @Column()
+    @Generated('increment')
+    orderNumber!: number;
+
+    @Column({ type: 'decimal', precision: 10, scale: 2})
+    totalAmount!: number;
+
+    @Column({ default: 'pending' })
+    status!: string;
+
+    @Column({ nullable: true })
+    trackingNumber?: string;
+
+    @Column({ nullable: true })
+    shippingLabelUrl?: string;
+
+    // Shipping Address fields
+    @Column({ nullable: true })
+    shippingName?: string;
+
+    @Column({ nullable: true })
+    shippingStreet1?: string;
+
+    @Column({ nullable: true })
+    shippingCity?: string;
+
+    @Column({ nullable: true })
+    shippingState?: string;
+
+    @Column({ nullable: true })
+    shippingZip?: string;
+
+    @Column({ nullable: true, default: 'US' })
+    shippingCountry?: string;
+
+    @Column({ nullable: true })
+    shippingPhone?: string;
+
+    @CreateDateColumn()
+    createdAt!: Date;
+}
+```
+
+**Why These Fields Matter**: In production, these fields would be populated when a customer completes checkout. For now, we use fallback values in the `ShippingService` so we can test the Shippo integration without actual customer data.
+
+### Step 3.4: Register the Service in the Orders Module
+
+Update `apps/api/src/modules/orders/orders.module.ts` to include the `ShippingService`.
+
+```typescript
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Order } from './entities/order.entity';
+import { OrderItem } from './entities/order-item.entity';
+import { OrdersService } from './orders.service';
+import { OrdersController } from './orders.controller';
+import { ShippingService } from './shipping.service';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([Order, OrderItem])],
+  controllers: [OrdersController],
+  providers: [OrdersService, ShippingService],
+  exports: [OrdersService, ShippingService, TypeOrmModule],
+})
+export class OrdersModule {}
+```
+
+### Step 3.5: Update the Orders Controller (The Workflow)
+
+Now that our "Post Office Clerk" (the Service) is ready, we need to create the "Counter" (the Controller) where the worker can perform these actions. 
+
+We will add two endpoints to the `OrdersController`:
+1.  **GET `/:id/rates`**: To see how much shipping will cost.
+2.  **POST `/:id/label`**: To actually buy the label and save the tracking info to our database.
+
+Update `apps/api/src/modules/orders/orders.controller.ts`:
+
+```typescript
+import { Controller, Post, Get, Param, Body, UseGuards } from '@nestjs/common';
+import { OrdersService } from './orders.service';
+import { ShippingService } from './shipping.service';
+import { Roles } from 'nest-keycloak-connect';
+
+@Controller('orders')
+export class OrdersController {
+  constructor(
+    private readonly ordersService: OrdersService,
+    private readonly shippingService: ShippingService
+  ) {}
+
+  // ... existing checkout/find methods ...
+
+  @Get(':id/rates')
+  @Roles({ roles: ['realm:worker', 'realm:admin'] })
+  async getRates(@Param('id') id: string) {
+    const order = await this.ordersService.findOne(id);
+    return this.shippingService.createShipment(order);
+  }
+
+  @Post(':id/label')
+  @Roles({ roles: ['realm:worker', 'realm:admin'] })
+  async purchaseLabel(
+    @Param('id') id: string,
+    @Body('rateId') rateId: string
+  ) {
+    // 1. Buy the label from Shippo
+    const transaction = await this.shippingService.purchaseLabel(rateId);
+
+    // 2. Update our database with tracking info and label URL
+    await this.ordersService.update(id, {
+      trackingNumber: transaction.tracking_number,
+      shippingLabelUrl: transaction.label_url,
+      status: 'Shipped'
+    });
+
+    return transaction;
   }
 }
 ```
@@ -107,16 +306,47 @@ export class ShippingService {
 
 ## 5. Verification & Learning Check
 
-### 5.1 The Rate Test
+### 5.1 Manual API Verification (Testing the Handshake)
 
-1.  **Trigger Shipping**: Use the Admin Page to click "Calculate Shipping" on an order.
-2.  **Verify**: You should see a list of prices (e.g., USPS: $5.00, UPS: $12.00). This proves your API key is correct and the "Handshake" with Shippo is working.
+Since we haven't built the Frontend Admin Dashboard yet, we will verify the shipping logic using `curl` commands in the terminal.
 
-### 6. Checklist for Success
+1.  **Get an Order ID**: First, list your orders to find a valid UUID:
+    ```bash
+    curl http://localhost:3000/api/orders
+    ```
+
+2.  **Get a JWT Token**: Since the rates endpoint is protected by Keycloak authentication, you need to obtain a JWT token with the `worker` or `admin` role:
+    ```bash
+    curl -X POST "http://localhost:8080/realms/sdas-realm/protocol/openid-connect/token" \
+      -d "client_id=sdas-api" \
+      -d "client_secret=CMi2UNaA2l7pGzDvKYwiQJ2CayZLvl0k" \
+      -d "username=chris_worker" \
+      -d "password=YOUR_PASSWORD" \
+      -d "grant_type=password"
+    ```
+    *   **Note**: Extract only the `access_token` value from the JSON response for use in the next step.
+
+3.  **Calculate Rates**: Use the Order ID and JWT token to get shipping prices from Shippo:
+    ```bash
+    curl -X GET "http://localhost:3000/api/orders/0381184f-8c5b-425c-add9-e71c67893e89/rates" \
+      -H "Authorization: Bearer YOUR_ACCESS_TOKEN_HERE"
+    ```
+    *   **Verify**: You should see a list of prices (e.g., USPS Ground: $10.00, USPS Priority: $12.96, USPS Express: $57.65). This proves your API key is correct and the "Handshake" with Shippo is working.
+
+4.  **Purchase a Label**: Pick a `rateId` from the results above and buy it:
+    ```bash
+    curl -X POST "http://localhost:3000/api/orders/YOUR_ORDER_ID/label" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer YOUR_ACCESS_TOKEN_HERE" \
+      -d '{"rateId": "rate_paste_the_id_here"}'
+    ```
+    *   **Verify**: You should receive a transaction object with a `tracking_number` and `label_url`. Check your PostgreSQL database; the order should now have these details saved.
+
+### Step 6. Checklist for Success
 
 - [ ] **API Key**: Is your `SHIPPO_API_KEY` in your `.env.local` file?
 - [ ] **Service**: Did you create the `ShippingService`?
-- [ ] **Logic**: Does the service separate "Calculating Rates" from "Buying the Label"?
+- [ ] **Separation of Concerns**: Does the workflow separate "Calculating Rates" (GET) from "Buying the Label" (POST)?
+- [ ] **Persistence**: Does the `purchaseLabel` endpoint save the `trackingNumber` and `shippingLabelUrl` back to the PostgreSQL database?
 
 **Moving Forward**: We can now ship products! But a business is more than just shipping—it's about people. We'll integrate **ADP** for HR and Payroll functions next.
-

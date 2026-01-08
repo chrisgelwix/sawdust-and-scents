@@ -21,4 +21,22 @@ export class OrdersService {
             relations: ['items'],
         });
     }
+
+    async findAll(): Promise<Order[]> {
+        return this.ordersRepository.find({
+            relations: ['items', 'user']
+        });
+    }
+
+    async findOne(id: string): Promise<Order | null> {
+        return this.ordersRepository.findOne({ 
+            where: { id },
+            relations: ['items'] 
+        });
+    }
+
+    async update(id: string, updateData: Partial<Order>): Promise<Order> {
+        await this.ordersRepository.update(id, updateData);
+        return (await this.findOne(id))!;
+    }
 }

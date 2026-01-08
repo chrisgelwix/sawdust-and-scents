@@ -37,7 +37,29 @@ export class Order {
     trackingNumber?: string;
 
     @Column({ nullable: true })
-    shippingLabbelUrl?: string;
+    shippingLabelUrl?: string;
+
+    // Shipping Address fields
+    @Column({ nullable: true })
+    shippingName?: string;
+
+    @Column({ nullable: true })
+    shippingStreet1?: string;
+
+    @Column({ nullable: true })
+    shippingCity?: string;
+
+    @Column({ nullable: true })
+    shippingState?: string;
+
+    @Column({ nullable: true })
+    shippingZip?: string;
+
+    @Column({ nullable: true, default: 'US' })
+    shippingCountry?: string;
+
+    @Column({ nullable: true })
+    shippingPhone?: string;
 
     @CreateDateColumn()
     createdAt!: Date;

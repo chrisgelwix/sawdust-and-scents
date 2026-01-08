@@ -29,9 +29,68 @@ Modern e-commerce isn't just about buttons and carts; it's about **Customer Serv
 
 ## 3. Step-by-Step Implementation
 
-### Step 3.1: Create the Chatbot Controller
+### Step 3.1: Create the Chatbot Service
+
+The Service handles the logic of responding to users. Create `apps/api/src/modules/chatbot/chatbot.service.ts`.
+
+```typescript
+import { Injectable } from '@nestjs/common';
+import { ProductsService } from '../products/products.service';
+import { OrdersService } from '../orders/orders.service';
+
+@Injectable()
+export class ChatbotService {
+  constructor(
+    private productsService: ProductsService,
+    private ordersService: OrdersService
+  ) {}
+
+  async processMessage(text: string, userId?: string) {
+    const input = text.toLowerCase();
+
+    if (input.includes('order') && userId) {
+      const orders = await this.ordersService.findByUser(userId);
+      return { reply: `You have ${orders.length} orders in our system.` };
+    }
+
+    if (input.includes('candle')) {
+      return { reply: "We have several scented candles available, including Sandalwood and Pine!" };
+    }
+
+    return { reply: "I'm Rowan! I can help you with order status or product questions." };
+  }
+
+  async getHistory(userId: string) {
+    // For now, return a static message. We will implement MongoDB storage in Step 18.
+    return [{ role: 'assistant', text: 'Hello! How can I help you today?' }];
+  }
+}
+```
+
+### Step 3.2: Create the Chatbot Module
+
+Create `apps/api/src/modules/chatbot/chatbot.module.ts`.
+
+```typescript
+import { Module } from '@nestjs/common';
+import { ChatbotController } from './chatbot.controller';
+import { ChatbotService } from './chatbot.service';
+import { ProductsModule } from '../products/products.module';
+import { OrdersModule } from '../orders/orders.module';
+
+@Module({
+  imports: [ProductsModule, OrdersModule],
+  controllers: [ChatbotController],
+  providers: [ChatbotService],
+})
+export class ChatbotModule {}
+```
+
+### Step 3.3: Create the Chatbot Controller
 
 Create `apps/api/src/modules/chatbot/chatbot.controller.ts`.
+
+**Note**: Don't forget to import `ChatbotModule` into your main `AppModule`.
 
 ```typescript
 import { Controller, Post, Body, Get } from '@nestjs/common';
