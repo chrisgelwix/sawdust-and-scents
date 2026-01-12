@@ -102,3 +102,4 @@ A professional manual test plan is recorded in a spreadsheet or testing tool.
 *   **Compliance**: Meeting the requirements of a specific standard (like NIST, GDPR, or PCI-DSS).
 *   **Supertest**: A library for testing Node.js HTTP servers using a fluent API.
 
+
