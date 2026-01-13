@@ -45,26 +45,31 @@ Programmatic Keycloak user management:
 - `disableUser(userId)`: Deactivate user account
 
 ### HRService (`hr.service.ts`)
-Orchestrates HR operations:
+Orchestrates HR operations by coordinating between ADP and Keycloak services:
 - Sync employees from ADP to Keycloak
 - Handle new employee onboarding
 - Process employee terminations
 - Reconcile differences between systems
 
 **Sync Logic:**
-1. Fetch employees from ADP
+1. Fetch employees from ADP (via ADPService)
 2. For each ADP employee:
-   - Search Keycloak by email
-   - If not found: create new user
-   - If found: update information
+   - Search Keycloak by email (via KeycloakAdminService)
+   - If not found: create new user with temporary password
+   - If found: update information if changed
 3. Assign appropriate roles based on job title/department
+4. Return sync statistics (created, updated, skipped, errors)
+
+**Design Note:** HRService imports and uses ADPService and KeycloakAdminService but doesn't directly use the ADPEmployee interface - type information is inferred from method returns.
 
 ### ManagementController (`management.controller.ts`)
-Admin API endpoints:
-- Dashboard statistics
+Admin API endpoints protected by Keycloak realm admin role:
+- Dashboard statistics and analytics
 - Employee sync triggers
-- HR reports
+- HR reports and summaries
 - System health checks
+
+**Security:** All endpoints require `realm:admin` role via `@Roles` decorator. Authentication is handled globally by Keycloak guards configured in the Auth module.
 
 ## Dependencies
 
@@ -217,4 +222,21 @@ async syncEmployeesJob() {
 - Verify Promise.all usage for parallel queries
 - Consider adding caching layer
 
+## Code Quality Notes
+
+### Recent Improvements (January 2026)
+- ✅ Removed unused imports for cleaner code
+- ✅ Fixed TypeScript linting errors
+- ✅ Improved type inference (removed redundant type annotations)
+- ✅ Enhanced documentation for service orchestration
+
+### Type Safety
+This module uses TypeScript strictly with minimal `any` types. Where `any` appears (e.g., in `getEmployeePayroll`), it's intentional for handling dynamic ADP/Keycloak API responses that have complex, nested structures.
+
+### Import Hygiene
+All imports are actively used. The module follows clean architecture principles with clear separation between:
+- **ADPService**: External API communication
+- **KeycloakAdminService**: User management
+- **HRService**: Business logic orchestration
+- **ManagementController**: HTTP endpoint handling
 

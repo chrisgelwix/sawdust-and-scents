@@ -1,4 +1,4 @@
-import { Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post } from '@nestjs/common';
 import { Roles } from 'nest-keycloak-connect';
 import { HRService } from './hr.service';
 import { InventoryService } from '../products/inventory.service';

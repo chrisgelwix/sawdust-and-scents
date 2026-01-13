@@ -260,7 +260,7 @@ export class KeycloakAdminService {
    * @param {number} length - Length of password (default: 16)
    * @returns {string} Random secure password
    */
-  generateTemporaryPassword(length: number = 16): string {
+  generateTemporaryPassword(length = 16): string {
     const charset =
       'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
     let password = '';

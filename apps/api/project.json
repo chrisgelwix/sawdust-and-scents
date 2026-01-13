@@ -70,6 +70,13 @@
       "options": {
         "passWithNoTests": true
       }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eslint . --max-warnings=-1",
+        "cwd": "apps/api"
+      }
     }
   }
 }

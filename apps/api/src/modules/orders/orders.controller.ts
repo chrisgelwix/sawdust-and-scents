@@ -3,8 +3,7 @@ import {
     Post,
     Get,
     Param,
-    Body,
-    UseGuards
+    Body
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { ShippingService } from './shipping.service';

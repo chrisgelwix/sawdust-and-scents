@@ -8,20 +8,26 @@ Manages user data and profile information. Authentication is handled by Keycloak
 
 ## Responsibilities
 
-- User profile storage
-- User preferences
-- Order history associations
+- User profile storage (complementing Keycloak authentication)
+- User preferences and settings
 - User metadata not managed by Keycloak
+- Saved shipping addresses
+
+**Note:** Order associations are managed in the Orders module, not here. This follows the Single Responsibility Principle.
 
 ## Key Components
 
 ### User Entity (`entities/user.entity.ts`)
+
 PostgreSQL entity for user data:
+
 - User profile information
 - Preferences and settings
 - References to Keycloak user ID
 - Shipping addresses (saved)
 - Contact preferences
+
+**Note:** This module has minimal dependencies. Order associations are managed in the Orders module. This module focuses solely on user profile data.
 
 ## Database Schema
 
@@ -50,6 +56,7 @@ users
 ### Why Both?
 
 **Keycloak Handles:**
+
 - ✅ Authentication (login/logout)
 - ✅ Password management
 - ✅ OAuth/OIDC tokens
@@ -58,6 +65,7 @@ users
 - ✅ Security features (MFA, etc.)
 
 **Users Table Handles:**
+
 - ✅ Application-specific profile data
 - ✅ Saved shipping addresses
 - ✅ User preferences
@@ -93,12 +101,14 @@ Currently only exports the User entity for use by other modules. Full user profi
 ## Planned API Endpoints
 
 ### Get User Profile
+
 ```http
 GET /users/profile
 Authorization: Bearer <token>
 ```
 
 ### Update Profile
+
 ```http
 PATCH /users/profile
 Authorization: Bearer <token>
@@ -115,6 +125,7 @@ Authorization: Bearer <token>
 ```
 
 ### Manage Addresses
+
 ```http
 # Add address
 POST /users/addresses
@@ -155,6 +166,24 @@ Authorization: Bearer <token>
 - Soft delete users (maintain order history)
 - GDPR compliance: data export/deletion
 
+## Code Quality Notes
+
+### Recent Improvements (January 2026)
+
+- ✅ Removed unused imports (Order, OrderItem, OrdersService)
+- ✅ Clean module boundaries - focuses solely on user profile data
+- ✅ Zero circular dependencies
+- ✅ Minimal coupling to other modules
+
+### Architecture
+
+This is one of the simplest modules in the codebase by design:
+
+- **Single responsibility**: User profile data only
+- **No business logic**: Just data storage and retrieval
+- **Keycloak integration**: Authentication handled elsewhere
+- **Order associations**: Managed by Orders module (loose coupling)
+
 ## Future Enhancements
 
 - [ ] User profile CRUD endpoints
@@ -186,7 +215,7 @@ const mockUserRepository = {
   findOne: jest.fn(),
   create: jest.fn(),
   save: jest.fn(),
-  update: jest.fn()
+  update: jest.fn(),
 };
 ```
 
@@ -215,7 +244,7 @@ Store `sub` as `keycloak_id` in Users table for lookups.
 export class UsersService {
   async findOrCreate(keycloakUser: KeycloakUser) {
     let user = await this.userRepository.findOne({
-      where: { keycloakId: keycloakUser.sub }
+      where: { keycloakId: keycloakUser.sub },
     });
 
     if (!user) {
@@ -223,7 +252,7 @@ export class UsersService {
         keycloakId: keycloakUser.sub,
         email: keycloakUser.email,
         firstName: keycloakUser.given_name,
-        lastName: keycloakUser.family_name
+        lastName: keycloakUser.family_name,
       });
       await this.userRepository.save(user);
     }
@@ -239,5 +268,3 @@ export class UsersService {
 - OrdersModule README - User order associations
 - [Keycloak Documentation](https://www.keycloak.org/documentation)
 - GDPR compliance guidelines
-
-

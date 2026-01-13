@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ADPService, ADPEmployee } from './adp.service';
+import { ADPService } from './adp.service';
 import { KeycloakAdminService } from './keycloak-admin.service';
 
 export interface SyncStats {

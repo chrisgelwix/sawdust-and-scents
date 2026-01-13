@@ -46,6 +46,16 @@ Core order management logic:
 - `updateStatus(orderId, status)`: Update order state
 - `findById(orderId)`: Retrieve specific order
 
+### OrdersController (`orders.controller.ts`)
+REST API endpoints for order operations:
+- Create orders (authenticated users)
+- Retrieve order history (user-specific)
+- Get order details
+- Update order status (admin)
+- Create shipping labels
+
+**Security:** Most endpoints require authentication via Keycloak. Public endpoints are explicitly marked with `@Public()` decorator.
+
 ### ShippingService (`shipping.service.ts`)
 Shippo integration for shipping:
 - Create shipments
@@ -229,6 +239,22 @@ const mockShippingService = {
 - **TypeORM**: Database persistence
 - **Shippo SDK**: Shipping integration
 - Used by: CartModule (checkout creates orders)
+
+## Code Quality Notes
+
+### Recent Improvements (January 2026)
+- ✅ Removed unused imports for cleaner code
+- ✅ Controller properly documents authentication requirements
+- ✅ Service separation maintained (OrdersService vs ShippingService)
+
+### Type Safety
+Services use specific return types. `any` types appear in Shippo integration methods due to the dynamic nature of the Shippo API responses. These are acceptable as they represent external API contracts.
+
+### Security Architecture
+Authentication is handled declaratively:
+- Default: All routes require authentication (global guard)
+- Public routes: Explicitly marked with `@Public()` decorator
+- No `UseGuards` imports needed - guards applied globally in AuthModule
 
 ## Future Enhancements
 
