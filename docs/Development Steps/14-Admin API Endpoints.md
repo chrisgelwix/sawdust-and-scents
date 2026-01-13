@@ -1,104 +1,501 @@
-# Step 14: Admin API Endpoints
+# Step 14: Additional Admin API Endpoints
 
-## 1. The "Why" Behind This Step: The Control Center
+## 1. The "Why" Behind This Step: Extending the Admin Dashboard
 
-Every professional e-commerce platform needs a "Back Office." While customers use the main site, the owners of **Sawdust and Scents** need dedicated endpoints to oversee the entire operation. 
+In **Step 13** (modules 13-13d), we built the core admin management system with the dashboard overview and employee sync. Now we'll extend this with additional administrative capabilities.
 
-**The Strategy**: We create **Admin Endpoints** that provide high-level access to products, orders, and external data (like ADP).
-- **The Concept**: This is about **Global Visibility**. Administrators don't look at one order; they look at *all* orders. They don't look at one worker; they look at the entire *HR system*.
+**What We've Already Built** (in Step 13):
 
----
+- ✅ Dashboard overview endpoint (`GET /management/dashboard/overview`)
+- ✅ Employee sync endpoint (`POST /management/employees/sync`)
+- ✅ ADPService, KeycloakAdminService, and HRService
+- ✅ Integration with inventory and orders services
 
-## 2. Core Concepts & Definitions
+**What We're Adding Now** (in Step 14):
 
-#### 2.0 Keycloak Pre-requisites (Admin Role)
-As defined in **Step 06b**, the endpoints in this module are protected by the highest level of security:
-- **Role Created**: `admin` must exist in Keycloak.
-- **User Assigned**: Your test account must have the `admin` role assigned in the **Role Mapping** tab.
-- **The Concept**: This ensures that even a standard worker cannot access sensitive HR or system-wide order summaries.
-
-#### 2.1 API Versioning & Prefixes
-
-- **The Logic**: We use the `/admin` prefix to separate management logic from public logic. This allows us to apply different security rules (like "Admin-Only") to an entire group of URLs at once.
-
-#### 2.2 Data Aggregation
-
-- **The Logic**: Admin endpoints often need to pull data from multiple places (Postgres, Mongo, and APIs) and "Flatten" them into a single report. 
+- 📋 Detailed orders management endpoints
+- 📦 Enhanced inventory management endpoints
+- 👥 Individual employee management endpoints
+- 📊 Advanced analytics and reporting
 
 ---
 
-## 3. Step-by-Step Implementation
+## 2. Prerequisites
 
-### Step 3.1: Create the Admin Controller
+Before proceeding with this step, ensure you have completed:
 
-Create `apps/api/src/modules/management/admin.controller.ts`. 
+- ✅ Step 13 (all parts: 13-13d) - Admin Dashboard and ADP HR Integration
+- ✅ Step 11 - Product and Inventory Management
+- ✅ Step 12 - Order Fulfillment and Shippo Integration
 
-**Note**: After creating this file, you must add `AdminController` to the `controllers` array in your `ManagementModule` (created in Step 13).
+You should have:
+
+- `ManagementController` with dashboard overview
+- `HRService`, `ADPService`, and `KeycloakAdminService`
+- Admin role configured in Keycloak
+
+---
+
+## 3. Understanding the Current Architecture
+
+From Step 13, we have:
+
+```
+ManagementController (/api/management)
+├── GET  /dashboard/overview    → Dashboard with aggregated data
+└── POST /employees/sync        → Sync employees from ADP
+```
+
+Now we'll extend it with more specific admin operations.
+
+---
+
+## 4. Extending the Management Controller
+
+### File: `apps/api/src/modules/management/management.controller.ts`
+
+Add these additional endpoints to the existing `ManagementController`:
 
 ```typescript
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
 import { Roles } from 'nest-keycloak-connect';
+import { HRService } from './hr.service';
+import { InventoryService } from '../products/inventory.service';
 import { OrdersService } from '../orders/orders.service';
 import { ProductsService } from '../products/products.service';
-import { HRService } from './hr.service';
 
-@Controller('admin')
-@Roles({ roles: ['realm:admin'] }) // Only users with 'admin' role can enter
-export class AdminController {
+@Controller('management')
+@Roles({ roles: ['realm:admin'] })
+export class ManagementController {
   constructor(
+    private hrService: HRService,
+    private inventoryService: InventoryService,
     private ordersService: OrdersService,
-    private productsService: ProductsService,
-    private hrService: HRService
+    private productsService: ProductsService // Add ProductsService
   ) {}
 
-  @Get('orders/summary')
-  async getOrderSummary() {
-    // Logic to get all orders across the system
-    return this.ordersService.findAll();
+  // ============================================
+  // EXISTING ENDPOINTS (from Step 13d)
+  // ============================================
+
+  @Get('dashboard/overview')
+  async getOverview() {
+    // ... (already implemented in Step 13d)
   }
 
-  @Get('inventory/health')
-  async getInventoryHealth() {
-    // Logic to see which products are low or out of stock
-    return this.productsService.findAll(); 
+  @Post('employees/sync')
+  async syncEmployees() {
+    // ... (already implemented in Step 13d)
   }
 
-  @Get('hr/sync')
-  async syncWithADP() {
-    // Trigger a sync with the ADP API
-    return this.hrService.syncEmployees();
+  // ============================================
+  // NEW ENDPOINTS (Step 14)
+  // ============================================
+
+  /**
+   * Get all orders with filtering and pagination
+   */
+  @Get('orders')
+  async getAllOrders() {
+    const orders = await this.ordersService.findAll();
+    return {
+      total: orders.length,
+      orders,
+    };
+  }
+
+  /**
+   * Get orders by status
+   */
+  @Get('orders/status/:status')
+  async getOrdersByStatus(@Param('status') status: string) {
+    // Assuming you have a findByStatus method in OrdersService
+    const orders = await this.ordersService.findByStatus(status);
+    return {
+      status,
+      count: orders.length,
+      orders,
+    };
+  }
+
+  /**
+   * Get detailed inventory report
+   */
+  @Get('inventory/report')
+  async getInventoryReport() {
+    const [allProducts, lowStockItems] = await Promise.all([
+      this.productsService.findAll(),
+      this.inventoryService.getLowStockItems(),
+    ]);
+
+    const totalValue = allProducts.reduce((sum, product) => {
+      const stock = (product.attributes?.['stock'] as number) || 0;
+      return sum + product.price * stock;
+    }, 0);
+
+    return {
+      totalProducts: allProducts.length,
+      lowStockCount: lowStockItems.length,
+      totalInventoryValue: totalValue,
+      lowStockItems: lowStockItems.map((item) => ({
+        id: item._id,
+        name: item.name,
+        stock: item.attributes?.['stock'],
+        threshold: item.attributes?.['lowStockThreshold'],
+        reorderRecommended: true,
+      })),
+    };
+  }
+
+  /**
+   * Get individual employee payroll
+   */
+  @Get('employees/:employeeId/payroll')
+  async getEmployeePayroll(@Param('employeeId') employeeId: string) {
+    try {
+      const payroll = await this.hrService.getEmployeePayroll(employeeId);
+      return {
+        employeeId,
+        payroll,
+      };
+    } catch (error) {
+      return {
+        employeeId,
+        error: 'Failed to fetch payroll data',
+      };
+    }
+  }
+
+  /**
+   * Get analytics summary
+   */
+  @Get('analytics/summary')
+  async getAnalyticsSummary() {
+    const [orders, products, lowStock, payrollSummary] = await Promise.all([
+      this.ordersService.findAll(),
+      this.productsService.findAll(),
+      this.inventoryService.getLowStockItems(),
+      this.hrService.getPayrollSummary().catch(() => null),
+    ]);
+
+    // Calculate revenue (sum of all delivered orders)
+    const revenue = orders
+      .filter((order) => order.status === 'delivered')
+      .reduce((sum, order) => sum + order.total, 0);
+
+    // Calculate average order value
+    const avgOrderValue = orders.length > 0 ? revenue / orders.length : 0;
+
+    return {
+      sales: {
+        totalRevenue: revenue,
+        totalOrders: orders.length,
+        averageOrderValue: avgOrderValue,
+      },
+      inventory: {
+        totalProducts: products.length,
+        lowStockItems: lowStock.length,
+      },
+      payroll: payrollSummary,
+      generatedAt: new Date().toISOString(),
+    };
   }
 }
 ```
 
 ---
 
-## 4. Deep Dive: Code Keyword Breakdown
+## 5. Adding Missing Methods to OrdersService
 
-#### 4.1 `@Roles({ roles: ['realm:admin'] })`
+The new endpoints require a `findByStatus` method in `OrdersService`.
 
-- **The Logic**: By placing this at the **Class Level** (above the class name), it automatically protects *every single method* inside this controller. You don't have to remember to protect each one individually.
+### File: `apps/api/src/modules/orders/orders.service.ts`
 
-#### 4.2 Cross-Service Injection
+Add this method:
 
-- **The Logic**: The `AdminController` is a "Super-Consumer." It injects services from the Orders module, Products module, and Management module. This is the beauty of NestJS—modules can share services as long as they are exported correctly.
+```typescript
+/**
+ * Find orders by status
+ *
+ * @param {string} status - Order status to filter by
+ * @returns {Promise<Order[]>} Orders with the specified status
+ */
+async findByStatus(status: string): Promise<Order[]> {
+  try {
+    return await this.ordersRepository.find({
+      where: { status },
+      order: { createdAt: 'DESC' },
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to find orders by status: ${errorMessage}`);
+  }
+}
+```
 
 ---
 
-## 5. Verification & Learning Check
+## 6. Testing the New Endpoints
 
-### 5.1 The "Forbidden" Test
+### 6.1 Test Get All Orders
 
-1.  **Login as a Customer**: Get a JWT for a standard user.
-2.  **Try Access**: Navigate to `http://localhost:3000/api/admin/orders/summary`.
-3.  **Result**: You should get a **403 Forbidden**.
-4.  **The Lesson**: This proves your "Admin Shield" is working. Even though the user is "Authenticated" (logged in), they are not "Authorized" (admin role) to see this data.
+```bash
+curl -X GET "http://localhost:3000/api/management/orders" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
 
-### 6. Checklist for Success
+Expected response:
 
-- [ ] **Shield**: Is the controller protected by the `realm:admin` role?
-- [ ] **Imports**: Did you import `OrdersModule` and `ProductsModule` into your `ManagementModule`?
-- [ ] **Endpoints**: Do you have routes for Orders, Inventory, and HR?
+```json
+{
+  "total": 45,
+  "orders": [
+    {
+      "id": "uuid-123",
+      "status": "pending",
+      "total": 149.99,
+      "createdAt": "2026-01-10T10:30:00Z"
+    }
+    // ... more orders
+  ]
+}
+```
 
-**Moving Forward**: We have the raw admin data. Now we need a specific "Dashboard" view that provides the quick stats for the managers. We'll build the **Management Dashboard Endpoints** next.
+### 6.2 Test Get Orders by Status
 
+```bash
+curl -X GET "http://localhost:3000/api/management/orders/status/pending" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+Expected response:
+
+```json
+{
+  "status": "pending",
+  "count": 12,
+  "orders": [
+    // ... pending orders only
+  ]
+}
+```
+
+### 6.3 Test Inventory Report
+
+```bash
+curl -X GET "http://localhost:3000/api/management/inventory/report" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+Expected response:
+
+```json
+{
+  "totalProducts": 150,
+  "lowStockCount": 8,
+  "totalInventoryValue": 45678.99,
+  "lowStockItems": [
+    {
+      "id": "...",
+      "name": "Oak Candle",
+      "stock": 3,
+      "threshold": 10,
+      "reorderRecommended": true
+    }
+  ]
+}
+```
+
+### 6.4 Test Analytics Summary
+
+```bash
+curl -X GET "http://localhost:3000/api/management/analytics/summary" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+Expected response:
+
+```json
+{
+  "sales": {
+    "totalRevenue": 125340.5,
+    "totalOrders": 842,
+    "averageOrderValue": 148.86
+  },
+  "inventory": {
+    "totalProducts": 150,
+    "lowStockItems": 8
+  },
+  "payroll": {
+    "processingPayRuns": 1,
+    "lastPayRunDate": "2026-01-10"
+  },
+  "generatedAt": "2026-01-11T15:30:00.000Z"
+}
+```
+
+---
+
+## 7. Role-Based Authorization
+
+### Implementing Granular Permissions
+
+You can add more specific role requirements for certain endpoints:
+
+```typescript
+// Only super admins can view employee payroll
+@Get('employees/:employeeId/payroll')
+@Roles({ roles: ['realm:super-admin'] })
+async getEmployeePayroll(@Param('employeeId') employeeId: string) {
+  // ...
+}
+
+// HR managers can sync employees
+@Post('employees/sync')
+@Roles({ roles: ['realm:admin', 'realm:hr-manager'] })
+async syncEmployees() {
+  // ...
+}
+
+// Regular managers can view analytics
+@Get('analytics/summary')
+@Roles({ roles: ['realm:admin', 'realm:manager'] })
+async getAnalyticsSummary() {
+  // ...
+}
+```
+
+---
+
+## 8. Complete Endpoint Reference
+
+After completing this step, your Management Controller has:
+
+| Method | Endpoint                            | Purpose            | Role Required |
+| ------ | ----------------------------------- | ------------------ | ------------- |
+| GET    | `/management/dashboard/overview`    | Dashboard overview | `admin`       |
+| POST   | `/management/employees/sync`        | Sync from ADP      | `admin`       |
+| GET    | `/management/orders`                | All orders list    | `admin`       |
+| GET    | `/management/orders/status/:status` | Orders by status   | `admin`       |
+| GET    | `/management/inventory/report`      | Detailed inventory | `admin`       |
+| GET    | `/management/employees/:id/payroll` | Employee payroll   | `admin`       |
+| GET    | `/management/analytics/summary`     | Analytics report   | `admin`       |
+
+---
+
+## 9. Key Takeaways
+
+### What You Learned
+
+1. **Extending Existing Controllers**: Adding new endpoints to existing controllers
+2. **Data Aggregation**: Combining data from multiple sources for analytics
+3. **Calculated Metrics**: Deriving insights (revenue, average order value) from raw data
+4. **Graceful Error Handling**: Some data can fail without breaking the entire response
+5. **Structured Responses**: Consistent JSON structure for frontend consumption
+
+### Best Practices Applied
+
+- ✅ RESTful endpoint design
+- ✅ Role-based access control
+- ✅ Descriptive response objects
+- ✅ Error handling for external services
+- ✅ Calculated fields for analytics
+- ✅ Parallel data fetching with `Promise.all()`
+
+---
+
+## 10. Troubleshooting
+
+### Issue: "Cannot find method findByStatus"
+
+**Solution**: Add the `findByStatus` method to `OrdersService` as shown in section 5.
+
+### Issue: "Cannot inject ProductsService"
+
+**Solution**: Ensure `ProductsModule` exports `ProductsService`:
+
+```typescript
+// In products.module.ts
+exports: [ProductsService, InventoryService],
+```
+
+### Issue: "Analytics returns NaN for revenue"
+
+**Solution**: Ensure orders have numeric `total` field and proper status filtering:
+
+```typescript
+const revenue = orders
+  .filter(
+    (order) => order.status === 'delivered' && typeof order.total === 'number'
+  )
+  .reduce((sum, order) => sum + order.total, 0);
+```
+
+---
+
+## 11. Next Steps
+
+Your admin API is now feature-complete! Proceed to:
+
+➡️ **Step 15: Management Dashboard API** - Build the UI-focused API layer
+
+or
+
+➡️ **Step 19: React Frontend Foundation** - Start building the admin dashboard UI
+
+---
+
+## 12. Verification Checklist
+
+Before moving on, verify:
+
+- [ ] All new endpoints return data successfully
+- [ ] `findByStatus` method added to `OrdersService`
+- [ ] `ProductsService` injected in `ManagementController`
+- [ ] Authorization works (admin role required)
+- [ ] Analytics calculations are correct
+- [ ] Inventory report shows low stock items
+- [ ] Error handling works for external API failures
+- [ ] All responses have consistent structure
+
+---
+
+**Congratulations!** Your admin management system is now complete with comprehensive endpoints for orders, inventory, employees, and analytics. The backend is ready for a full-featured admin dashboard UI!
+
+---
+
+## Appendix: Complete Controller Structure
+
+After both Step 13d and Step 14, your `ManagementController` should have this structure:
+
+```typescript
+@Controller('management')
+@Roles({ roles: ['realm:admin'] })
+export class ManagementController {
+  constructor(
+    private hrService: HRService,
+    private inventoryService: InventoryService,
+    private ordersService: OrdersService,
+    private productsService: ProductsService
+  ) {}
+
+  // Dashboard & Sync (Step 13d)
+  getOverview();
+  syncEmployees();
+
+  // Orders Management (Step 14)
+  getAllOrders();
+  getOrdersByStatus();
+
+  // Inventory Management (Step 14)
+  getInventoryReport();
+
+  // HR Management (Step 14)
+  getEmployeePayroll();
+
+  // Analytics (Step 14)
+  getAnalyticsSummary();
+}
+```
+
+This provides a complete admin API for managing all aspects of the business.

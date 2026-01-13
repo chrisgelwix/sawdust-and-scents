@@ -24,6 +24,14 @@ export class ADPService {
 
   constructor(private config: ConfigService) {}
 
+  /**
+   * Get OAuth2 Access Token from ADP
+   *
+   * Implements token caching to minimize authentication requests.
+   * Tokens are refreshed automatically before expiration.
+   *
+   * @returns {Promise<string>} Valid ADP access token
+   */
   async getAccessToken(): Promise<string> {
     // If we have a cached token that hasn't expired, use it
     if (
@@ -39,11 +47,11 @@ export class ADPService {
     const clientSecret = this.config.get<string>('ADP_CLIENT_SECRET');
     const adpTokenUrl =
       this.config.get<string>('ADP_TOKEN_URL') ||
-      'htpps://accounts.asp.com/auth/oauth/v2/token';
+      'https://accounts.adp.com/auth/oauth/v2/token';
 
     if (!clientId || !clientSecret) {
       throw new Error(
-        'ADP credentials not configured. Set ADP_CLIENT_ID and ADP_CLIENT_SECRET in .evnv.local'
+        'ADP credentials not configured. Set ADP_CLIENT_ID and ADP_CLIENT_SECRET in .env.local'
       );
     }
 
@@ -59,7 +67,7 @@ export class ADPService {
         }),
         {
           headers: {
-            'Content-Type': 'application/x-www-form-urlendcoded',
+            'Content-Type': 'application/x-www-form-urlencoded',
           },
         }
       );
@@ -97,7 +105,7 @@ export class ADPService {
           $filter:
             "workAssignment/assignmentStatus/statusCode/codeValue eq 'Active'",
           $select:
-            'workerID,person/legalName,person/communication/emails,workAssignment',
+            'workerId,person/legalName,person/communication/emails,workAssignment',
         },
       });
 

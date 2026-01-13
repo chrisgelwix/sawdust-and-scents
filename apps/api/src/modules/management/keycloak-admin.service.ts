@@ -37,6 +37,7 @@ export class KeycloakAdminService {
       new Date() < this.adminTokenExpiration
     ) {
       this.logger.debug('Using cached Keycloak admin token');
+      return this.cachedAdminToken as string;
     }
 
     const keycloakUrl = this.config.get<string>('KEYCLOAK_URL');
@@ -49,7 +50,7 @@ export class KeycloakAdminService {
     }
 
     try {
-      this.logger.log('Reqyesting Keycloak admin token');
+      this.logger.log('Requesting Keycloak admin token');
 
       const response = await axios.post(
         `${keycloakUrl}/realms/${realm}/protocol/openid-connect/token`,
@@ -76,7 +77,7 @@ export class KeycloakAdminService {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Failed to obtain Keycloak admin token', error);
-      throw new Error(`Keycloak amding authentication failed: ${errorMessage}`);
+      throw new Error(`Keycloak admin authentication failed: ${errorMessage}`);
     }
   }
 
@@ -92,15 +93,15 @@ export class KeycloakAdminService {
     const realm = this.config.get<string>('KEYCLOAK_REALM');
 
     try {
-      this.logger.log(`Searching for user by email: ${email}`);
+      this.logger.debug(`Searching for user by email: ${email}`);
       const response = await axios.get(
         `${keycloakUrl}/admin/realms/${realm}/users`,
         {
           params: { email, exact: true },
-          headers: { Authorization: `Bearer $token}` },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
-      return response.data.lenght > 0 ? response.data[0] : null;
+      return response.data.length > 0 ? response.data[0] : null;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -157,7 +158,7 @@ export class KeycloakAdminService {
       }
 
       this.logger.log(
-        `Uwer created successfully: ${userData.email} (ID: $userId})`
+        `User created successfully: ${userData.email} (ID: ${userId})`
       );
       return userId;
     } catch (error) {
@@ -191,16 +192,16 @@ export class KeycloakAdminService {
         userData,
         {
           headers: {
-            Authoerization: `Bearer $[token}`,
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         }
       );
 
-      this.logger.log(`user updated succesfully: ${userId}`);
+      this.logger.log(`User updated successfully: ${userId}`);
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Unkown error';
+        error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Failed to update user: ${userId}`, error);
       throw new Error(`Failed to update Keycloak user: ${errorMessage}`);
     }
@@ -249,7 +250,7 @@ export class KeycloakAdminService {
         `Failed to assign role '${roleName}' to user ${userId}`,
         error
       );
-      throw new Error(`Fail ed to assign role ${roleName} to user ${userId}`);
+      throw new Error(`Failed to assign role ${roleName} to user ${userId}`);
     }
   }
 

@@ -73,7 +73,7 @@ apps/
 │   ├── src/
 │   ├── project.json        <-- Specific rules for the Web app
 │   └── vite.config.ts      <-- The build tool for React
-└── api-e2e/                <-- Automated tests for the API
+└── e2e/                    <-- Automated tests (API, Playwright, NIST, Integration)
 ```
 
 ---
