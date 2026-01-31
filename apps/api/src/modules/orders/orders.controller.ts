@@ -5,11 +5,13 @@ import {
     Param,
     Body
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { ShippingService } from './shipping.service';
 import { Roles } from 'nest-keycloak-connect';
 import { Public } from '../auth/decorators/public.decorator';
 
+@ApiTags('orders')
 @Controller('orders')
 export class OrdersController {
     constructor(

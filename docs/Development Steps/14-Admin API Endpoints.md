@@ -224,6 +224,7 @@ async findByStatus(status: string): Promise<Order[]> {
   try {
     return await this.ordersRepository.find({
       where: { status },
+      relations: ['items', 'user']
       order: { createdAt: 'DESC' },
     });
   } catch (error) {

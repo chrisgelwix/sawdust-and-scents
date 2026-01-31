@@ -6,11 +6,13 @@ import {
     Param,
     Get 
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from 'nest-keycloak-connect';
 import { Product} from './schemas/product.schema';
 
+@ApiTags('products')
 @Controller('products')
 export class ProductsController{
     constructor(private productsService: ProductsService)

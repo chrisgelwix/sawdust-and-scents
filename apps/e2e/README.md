@@ -435,14 +435,8 @@ When adding new tests:
 4. Ensure tests pass locally before committing
 5. Add tests to appropriate CI/CD workflows
 
-## Support
-
-For questions or issues with testing:
+## SupportFor questions or issues with testing:
 - Check troubleshooting section above
 - Review test examples in each category
 - Consult development documentation
-- Ask team lead or senior developers
-
----
-
-**Remember:** Tests are living documentation. Keep them clean, clear, and up-to-date!
+- Ask team lead or senior developers---**Remember:** Tests are living documentation. Keep them clean, clear, and up-to-date!

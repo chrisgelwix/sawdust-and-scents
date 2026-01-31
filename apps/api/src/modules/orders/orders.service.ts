@@ -52,4 +52,18 @@ export class OrdersService {
       throw new Error(`Failed to get pending orders count: ${errorMessage}`);
     }
   }
+
+  async findByStatus(status: string): Promise<Order[]> {
+    try { 
+      return await this.ordersRepository.find({
+        where: {status}, 
+        relations: ['items', 'user'],
+        order: {createdAt: 'DESC'},
+      });
+
+    } catch(error) { 
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to find orders by status: ${errorMessage}`);
+    }
+  }
 }
