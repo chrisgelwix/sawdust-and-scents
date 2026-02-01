@@ -25,4 +25,18 @@ export class ProductsService {
     async update(id: string, updateData: Partial<Product>): Promise<Product | null> {
         return this.productModel.findByIdAndUpdate(id, updateData, {new: true}).exec();
     }
+
+    async findByAttribute(key: string, value: any): Promise<Product[]> {
+        const query = { [`attributes.${key}`]: value };
+        return this.productModel.find(query).exec();
+    }
+
+    async findByScent(scent: string): Promise<Product[]> {
+        const query = { 'attributes.scent': scent };
+        return this.productModel.find(query).exec();
+    }
+
+    async getDistinctScents(): Promise<string[]> {
+        return this.productModel.distinct('attributes.scent').exec() as Promise<string[]>;
+    }
 }

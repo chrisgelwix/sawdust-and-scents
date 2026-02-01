@@ -433,9 +433,7 @@ When adding new tests:
 2. Follow existing patterns and conventions
 3. Update relevant README files
 4. Ensure tests pass locally before committing
-5. Add tests to appropriate CI/CD workflows
-
-## SupportFor questions or issues with testing:
+5. Add tests to appropriate CI/CD workflows## SupportFor questions or issues with testing:
 - Check troubleshooting section above
 - Review test examples in each category
 - Consult development documentation

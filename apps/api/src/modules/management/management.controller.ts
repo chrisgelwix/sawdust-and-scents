@@ -24,6 +24,8 @@ export class ManagementController {
    * Get dashboard overview with aggregated data from multiple sources
    */
   @Get('dashboard/overview')
+  @ApiOperation({ summary: 'Get management dashboard overview' })
+  @ApiResponse({ status: 200, description: 'Aggregated dashboard data' })
   async getOverview() {
     // Aggregate data from MongoDB, PostgreSQL
     return this.managementService.getOverview();
@@ -31,12 +33,16 @@ export class ManagementController {
   }
 
   @Get('inventory/alerts')
+  @ApiOperation({ summary: 'Get low stock alerts' })
+  @ApiResponse({ status: 200, description: 'List of products needing attention' })
   async getInventoryAlerts() {
     // Returns only products that need immediate attention
     return this.managementService.getLowStockAlerts();
   }
 
   @Post('employees/sync')
+  @ApiOperation({ summary: 'Sync employee data from ADP/HR system' })
+  @ApiResponse({ status: 200, description: 'Sync results' })
   async syncEmployees() {
     const result = await this.hrService.syncEmployees();
 
@@ -48,6 +54,8 @@ export class ManagementController {
 
   // Get all orders
   @Get('orders')
+  @ApiOperation({ summary: 'Get all orders (management view)' })
+  @ApiResponse({ status: 200, description: 'List of all orders' })
   async getAllOrders() {
     const orders = await this.ordersService.findAll();
     return {
@@ -58,6 +66,8 @@ export class ManagementController {
 
   //Get orders by status
   @Get('orders/status/:status')
+  @ApiOperation({ summary: 'Get orders by status' })
+  @ApiResponse({ status: 200, description: 'Filtered list of orders' })
   async getOrdersByStatus(@Param('status') status: string) {
     const orders = await this.ordersService.findByStatus(status);
     return {
@@ -68,6 +78,8 @@ export class ManagementController {
   }
 
   @Get('inventory/report')
+  @ApiOperation({ summary: 'Get detailed inventory report' })
+  @ApiResponse({ status: 200, description: 'Inventory analytics and low stock report' })
   async getInventoryReport() {
     const [allProducts, lowStockItems] = await Promise.all([
       this.productsService.findAll(),
@@ -94,6 +106,8 @@ export class ManagementController {
   }
 
   @Get('employees/:employeeId/payroll')
+  @ApiOperation({ summary: 'Get payroll data for an employee' })
+  @ApiResponse({ status: 200, description: 'Payroll information' })
   async getEmployeePayroll(@Param('employeeId') employeeId: string) {
     try {
       const payroll = await this.hrService.getEmployeePayroll(employeeId);
@@ -110,6 +124,8 @@ export class ManagementController {
   }
 
   @Get('analytics/summary')
+  @ApiOperation({ summary: 'Get overall analytics summary' })
+  @ApiResponse({ status: 200, description: 'Sales, inventory, and payroll summary' })
   async getAnalyticsSummary() {
     const [orders, products, lowStock, payrollSummary] = await Promise.all([
       this.ordersService.findAll(),
