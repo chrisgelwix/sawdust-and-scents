@@ -2,12 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from './entities/order.entity';
+import { User } from '../users/entities/user.entity';
+import { ErrorHandlerService } from '../common/errors/error-handler.service';
 
 @Injectable()
 export class OrdersService {
   constructor(
     @InjectRepository(Order)
-    private ordersRepository: Repository<Order>
+    private ordersRepository: Repository<Order>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
+    private errorService: ErrorHandlerService
   ) {}
 
   async create(orderData: Partial<Order>): Promise<Order> {
@@ -19,7 +24,25 @@ export class OrdersService {
     return this.ordersRepository.find({
       where: { user: { id: userId } },
       relations: ['items'],
+      order: { createdAt: 'DESC' }
     });
+  }
+
+  async findByContactInfo(contactInfo: string): Promise<Order[]> {
+    try{
+    const user = await this.usersRepository.findOne({
+      where: [
+        { email: contactInfo},
+        { phoneNumber: contactInfo}
+      ]
+    });
+
+      if(!user) return [];
+
+      return this.findByUser(user.id);
+    } catch(error) {
+      this.errorService.handleError(error, 'OrdersService.findByContactInfo');
+    }
   }
 
   async findAll(): Promise<Order[]> {

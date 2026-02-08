@@ -12,11 +12,14 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ unique: true })
-  keycloakId!: string;
+  @Column({ unique: true, nullable: true })
+  keycloakId?: string;
 
-  @Column()
+  @Column({ unique: true })
   email!: string;
+
+  @Column({ unique: true,nullable: true })
+  phoneNumber?: string;
 
   @OneToMany(() => Order, (order) => order.user)
   orders!: Order[];

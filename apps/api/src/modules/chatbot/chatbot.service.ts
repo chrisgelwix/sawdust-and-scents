@@ -10,11 +10,25 @@ export class ChatbotService {
         private ordersService: OrdersService,
     ) {}
 
-    async processMessage(text: string, userId?: string) {
+    async processMessage(text: string, userId: string): Promise<{reply: string}>{
         const input = text.toLowerCase();
 
         // Check for order status/delivery
-        if ((input.includes('order') || input.includes('delivery') || input.includes('status')) && userId) {
+        if ((input.includes('order') || input.includes('delivery') || input.includes('status'))) {
+            
+            const emailMatch = input.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/);
+            const phoneMatch = input.match(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/);
+            const contactInfo = emailMatch ? emailMatch[0] : (phoneMatch ? phoneMatch[0] : null);
+
+            if (contactInfo) {
+                const orders = await this.ordersService.findByContactInfo(contactInfo);
+                if (orders.length > 0) {
+                    return { reply: `I found ${orders.length} orders for your account.` };
+                } else {
+                    return { reply: "I couldn't find any orders for your account." };
+                }
+            }
+
             const orders = await this.ordersService.findByUser(userId);
             if (orders.length === 0) {
                 return { reply: "I couldn't find any orders for your account." };
