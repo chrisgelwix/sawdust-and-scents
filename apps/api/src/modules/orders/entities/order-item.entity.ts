@@ -1,9 +1,4 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  ManyToOne,
-} from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne } from 'typeorm';
 import { Order } from './order.entity';
 
 @Entity('order_items')
@@ -26,7 +21,3 @@ export class OrderItem {
   @Column()
   quantity!: number;
 }
-
-
-
-

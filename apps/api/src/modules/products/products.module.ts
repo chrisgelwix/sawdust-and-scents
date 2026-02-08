@@ -5,13 +5,11 @@ import { ProductsController } from './products.controller';
 import { InventoryService } from './inventory.service';
 import { Product, ProductSchema } from './schemas/product.schema';
 @Module({
-    imports: [
-        MongooseModule.forFeature([
-            { name: Product.name, schema: ProductSchema }
-        ])
-    ], 
-    controllers: [ProductsController],
-    providers: [ProductsService, InventoryService],
-    exports: [ProductsService, InventoryService,MongooseModule]
+  imports: [
+    MongooseModule.forFeature([{ name: Product.name, schema: ProductSchema }]),
+  ],
+  controllers: [ProductsController],
+  providers: [ProductsService, InventoryService],
+  exports: [ProductsService, InventoryService, MongooseModule],
 })
 export class ProductsModule {}

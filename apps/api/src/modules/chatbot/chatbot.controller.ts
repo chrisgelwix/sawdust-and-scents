@@ -1,6 +1,12 @@
 import { Controller, Post, Body, Get } from '@nestjs/common';
 import { ChatbotService } from './chatbot.service';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiBody,
+} from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
 import { AuthenticatedUser } from '../auth/decorators/user.decorator';
 import { ChatMessageDto } from './dto/chat-message.dto';
@@ -8,27 +14,32 @@ import { ChatMessageDto } from './dto/chat-message.dto';
 @ApiTags('chatbot')
 @Controller('chatbot')
 export class ChatbotController {
-    constructor(private chatbotService: ChatbotService) {}
+  constructor(private chatbotService: ChatbotService) {}
 
-    @Public() //Anyone can ask general product questions
-    @Post('message')
-    @ApiOperation({ summary: 'Send a message to Rowan the chatbot' })
-    @ApiBody({ 
-        description: 'The message to send to the chatbot',
-        type: ChatMessageDto 
-    })
-    @ApiResponse({ status: 200, description: 'The chatbot response' })
-    async handleMessage(@Body() chatMessageDto: ChatMessageDto, @AuthenticatedUser() user?: any) {
-        //If the user is logged in, we can provider their order info
-        return this.chatbotService.processMessage(chatMessageDto.text, user?.sub);
-    }
+  @Public() //Anyone can ask general product questions
+  @Post('message')
+  @ApiOperation({ summary: 'Send a message to Rowan the chatbot' })
+  @ApiBody({
+    description: 'The message to send to the chatbot',
+    type: ChatMessageDto,
+  })
+  @ApiResponse({ status: 200, description: 'The chatbot response' })
+  async handleMessage(
+    @Body() chatMessageDto: ChatMessageDto,
+    @AuthenticatedUser() user?: any
+  ) {
+    //If the user is logged in, we can provider their order info
+    return this.chatbotService.processMessage(chatMessageDto.text, user?.sub);
+  }
 
-    @Get('history')
-    @ApiBearerAuth()
-    @ApiOperation({ summary: 'Get chatbot conversation history for the current user' })
-    @ApiResponse({ status: 200, description: 'List of previous messages' })
-    async getHistory(@AuthenticatedUser() user: any) {
-        //Only logged in users can see their conversaton history
-        return this.chatbotService.getHistory(user.sub);
-    }
+  @Get('history')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get chatbot conversation history for the current user',
+  })
+  @ApiResponse({ status: 200, description: 'List of previous messages' })
+  async getHistory(@AuthenticatedUser() user: any) {
+    //Only logged in users can see their conversaton history
+    return this.chatbotService.getHistory(user.sub);
+  }
 }

@@ -1,5 +1,10 @@
 import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { Roles } from 'nest-keycloak-connect';
 import { HRService } from './hr.service';
 import { InventoryService } from '../products/inventory.service';
@@ -10,7 +15,7 @@ import { ProductsService } from '../products/products.service';
 @ApiTags('management')
 @ApiBearerAuth()
 @Controller('management')
-@Roles({ roles: ['realm:manager','realm:admin'] })
+@Roles({ roles: ['realm:manager', 'realm:admin'] })
 export class ManagementController {
   constructor(
     private hrService: HRService,
@@ -34,7 +39,10 @@ export class ManagementController {
 
   @Get('inventory/alerts')
   @ApiOperation({ summary: 'Get low stock alerts' })
-  @ApiResponse({ status: 200, description: 'List of products needing attention' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of products needing attention',
+  })
   async getInventoryAlerts() {
     // Returns only products that need immediate attention
     return this.managementService.getLowStockAlerts();
@@ -79,7 +87,10 @@ export class ManagementController {
 
   @Get('inventory/report')
   @ApiOperation({ summary: 'Get detailed inventory report' })
-  @ApiResponse({ status: 200, description: 'Inventory analytics and low stock report' })
+  @ApiResponse({
+    status: 200,
+    description: 'Inventory analytics and low stock report',
+  })
   async getInventoryReport() {
     const [allProducts, lowStockItems] = await Promise.all([
       this.productsService.findAll(),
@@ -125,7 +136,10 @@ export class ManagementController {
 
   @Get('analytics/summary')
   @ApiOperation({ summary: 'Get overall analytics summary' })
-  @ApiResponse({ status: 200, description: 'Sales, inventory, and payroll summary' })
+  @ApiResponse({
+    status: 200,
+    description: 'Sales, inventory, and payroll summary',
+  })
   async getAnalyticsSummary() {
     const [orders, products, lowStock, payrollSummary] = await Promise.all([
       this.ordersService.findAll(),

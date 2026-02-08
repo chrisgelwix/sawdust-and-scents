@@ -1,9 +1,9 @@
-import { 
-    Entity,
-    Column,
-    PrimaryGeneratedColumn,
-    CreateDateColumn,
-    OneToMany
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  OneToMany,
 } from 'typeorm';
 import { Order } from '../../orders/entities/order.entity';
 
@@ -18,7 +18,7 @@ export class User {
   @Column({ unique: true })
   email!: string;
 
-  @Column({ unique: true,nullable: true })
+  @Column({ unique: true, nullable: true })
   phoneNumber?: string;
 
   @OneToMany(() => Order, (order) => order.user)

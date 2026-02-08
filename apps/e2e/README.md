@@ -427,9 +427,7 @@ See root `package.json` for complete list.
 
 ## Contributing
 
-When adding new tests:
-
-1. Choose the appropriate test type (API, integration, Playwright, NIST)
+When adding new tests:1. Choose the appropriate test type (API, integration, Playwright, NIST)
 2. Follow existing patterns and conventions
 3. Update relevant README files
 4. Ensure tests pass locally before committing

@@ -1,44 +1,36 @@
-import { 
-    Controller,
-    Post,
-    Body,
-    Put,
-    Param,
-    Get 
-} from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from 'nest-keycloak-connect';
-import { Product} from './schemas/product.schema';
+import { Product } from './schemas/product.schema';
 
 @ApiTags('products')
 @Controller('products')
-export class ProductsController{
-    constructor(private productsService: ProductsService)
-    {}
+export class ProductsController {
+  constructor(private productsService: ProductsService) {}
 
-    @Public()
-    @Get()
-    findAll() {
-        return this.productsService.findAll();
-    }
+  @Public()
+  @Get()
+  findAll() {
+    return this.productsService.findAll();
+  }
 
-    @Public()
-    @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.productsService.findOne(id);
-    }
+  @Public()
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.productsService.findOne(id);
+  }
 
-    @Post()
-    @Roles({ roles: ['realm:worker', 'realm:admin']})
-    create(@Body() productData: Partial<Product>) {
-        return this.productsService.create(productData);
-    }
+  @Post()
+  @Roles({ roles: ['realm:worker', 'realm:admin'] })
+  create(@Body() productData: Partial<Product>) {
+    return this.productsService.create(productData);
+  }
 
-    @Put(':id')
-    @Roles({ roles: ['realm:worker', 'realm:admin']})
-    update(@Param('id') id: string, @Body() updateData: Partial<Product>) {
-        return this.productsService.update(id, updateData);
-    }
+  @Put(':id')
+  @Roles({ roles: ['realm:worker', 'realm:admin'] })
+  update(@Param('id') id: string, @Body() updateData: Partial<Product>) {
+    return this.productsService.update(id, updateData);
+  }
 }

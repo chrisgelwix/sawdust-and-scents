@@ -10,7 +10,7 @@ import { ManagementService } from './management.service';
 @Module({
   imports: [ProductsModule, OrdersModule],
   controllers: [ManagementController],
-  providers: [ADPService, KeycloakAdminService, HRService , ManagementService],
+  providers: [ADPService, KeycloakAdminService, HRService, ManagementService],
   exports: [ADPService, KeycloakAdminService, HRService, ManagementService],
 })
 export class ManagementModule {}

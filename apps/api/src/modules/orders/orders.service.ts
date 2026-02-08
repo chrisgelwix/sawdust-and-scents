@@ -24,23 +24,20 @@ export class OrdersService {
     return this.ordersRepository.find({
       where: { user: { id: userId } },
       relations: ['items'],
-      order: { createdAt: 'DESC' }
+      order: { createdAt: 'DESC' },
     });
   }
 
   async findByContactInfo(contactInfo: string): Promise<Order[]> {
-    try{
-    const user = await this.usersRepository.findOne({
-      where: [
-        { email: contactInfo},
-        { phoneNumber: contactInfo}
-      ]
-    });
+    try {
+      const user = await this.usersRepository.findOne({
+        where: [{ email: contactInfo }, { phoneNumber: contactInfo }],
+      });
 
-      if(!user) return [];
+      if (!user) return [];
 
       return this.findByUser(user.id);
-    } catch(error) {
+    } catch (error) {
       this.errorService.handleError(error, 'OrdersService.findByContactInfo');
     }
   }
@@ -77,15 +74,15 @@ export class OrdersService {
   }
 
   async findByStatus(status: string): Promise<Order[]> {
-    try { 
+    try {
       return await this.ordersRepository.find({
-        where: {status}, 
+        where: { status },
         relations: ['items', 'user'],
-        order: {createdAt: 'DESC'},
+        order: { createdAt: 'DESC' },
       });
-
-    } catch(error) { 
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Failed to find orders by status: ${errorMessage}`);
     }
   }
