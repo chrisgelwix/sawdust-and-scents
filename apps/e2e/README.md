@@ -425,9 +425,7 @@ See root `package.json` for complete list.
 - [Development Steps](../../docs/Development%20Steps/)
 - [GitHub Actions README](../../.github/README.md)
 
-## Contributing
-
-When adding new tests:1. Choose the appropriate test type (API, integration, Playwright, NIST)
+## ContributingWhen adding new tests:1. Choose the appropriate test type (API, integration, Playwright, NIST)
 2. Follow existing patterns and conventions
 3. Update relevant README files
 4. Ensure tests pass locally before committing

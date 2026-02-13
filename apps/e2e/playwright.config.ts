@@ -1,4 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
+import * as path from 'path';
+import * as dotenv from 'dotenv';
+
+// Load environment variables from .env.local at workspace root
+dotenv.config({ path: path.resolve(__dirname, '../../.env.local') });
 
 /**
  * Playwright Configuration for E2E Testing
@@ -7,10 +12,11 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   // Test directory
-  testDir: './src/playwright/tests',
+  testDir: './src',
+  testMatch: /.*\.spec\.ts/,
 
   // Maximum time one test can run
-  timeout: 30 * 1000,
+  timeout: 60 * 1000,
 
   // Test execution settings
   fullyParallel: true,
@@ -41,15 +47,23 @@ export default defineConfig({
 
     // API endpoint for API testing
     extraHTTPHeaders: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
     },
   },
 
   // Configure projects for major browsers
   projects: [
     {
+      name: 'api',
+      testDir: './src/tests/API',
+      use: {
+        baseURL: (process.env.API_URL || 'http://localhost:3000') + '/api/',
+      },
+    },
+    {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      testDir: './src/playwright/tests',
+      use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:4200' },
     },
 
     {
@@ -79,11 +93,21 @@ export default defineConfig({
     },
   ],
 
-  // Run local dev server before starting tests
-  webServer: {
-    command: 'npm run web:dev',
-    url: 'http://localhost:4200',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-  },
+  // Run local dev servers before starting tests
+  webServer: [
+    {
+      command: 'npm run api:dev',
+      url: 'http://localhost:3000/api',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120 * 1000,
+      cwd: path.resolve(__dirname, '../..'),
+    },
+    {
+      command: 'npm run web:dev',
+      url: 'http://localhost:4200',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120 * 1000,
+      cwd: path.resolve(__dirname, '../..'),
+    },
+  ],
 });

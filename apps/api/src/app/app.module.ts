@@ -11,6 +11,7 @@ import { UsersModule } from '../modules/users/users.module';
 import { PaymentsModule } from '../modules/payments/payments.module';
 import { DatabaseModule } from '../modules/database/database.module';
 import { ManagementModule } from '../modules/management/management.module';
+import { CommonModule } from '../modules/common/common.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ManagementModule } from '../modules/management/management.module';
       isGlobal: true,
       envFilePath: '.env.local',
     }),
+    CommonModule,
     AuthModule,
     ProductsModule,
     OrdersModule,
