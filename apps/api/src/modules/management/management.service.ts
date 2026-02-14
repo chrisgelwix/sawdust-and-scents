@@ -12,15 +12,17 @@ export class ManagementService {
   ) {}
 
   async getOverview() {
-    const [orders, products] = await Promise.all([
+    const [ordersResult, products] = await Promise.all([
       this.ordersService.findAll(),
       this.productsService.findAll(),
     ]);
 
+    const orders = ordersResult.orders;
+
     return {
       totalSales: orders.reduce((sum, o) => sum + Number(o.totalAmount), 0),
-      orderCount: orders.length,
-      prodcutCount: products.length,
+      orderCount: ordersResult.total,
+      productCount: products.length,
       lowStockCount: products.filter(
         (p) => (p.attributes['stock'] as number) < 5
       ).length,

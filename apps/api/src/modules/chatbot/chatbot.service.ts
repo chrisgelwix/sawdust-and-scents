@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { ProductsService } from '../products/products.service';
 import { OrdersService } from '../orders/orders.service';
 
@@ -30,11 +30,21 @@ export class ChatbotService {
           : null;
 
       if (contactInfo) {
-        const orders = await this.ordersService.findByContactInfo(contactInfo);
-        if (orders.length > 0) {
-          return { reply: `I found ${orders.length} orders for your account.` };
-        } else {
-          return { reply: "I couldn't find any orders for your account." };
+        try {
+          const orders = await this.ordersService.findByContactInfo(contactInfo);
+          if (orders.length > 0) {
+            return { reply: `I found ${orders.length} orders for your account.` };
+          } else {
+            return { reply: "I couldn't find any orders for that contact information." };
+          }
+        } catch (error) {
+          if (error instanceof ForbiddenException) {
+            return {
+              reply: 'It looks like that email or phone number is associated with an existing account. ' +
+                'Please sign in to view your order history — I can help you once you\'re logged in!'
+            };
+          }
+          return { reply: "Sorry, I wasn't able to look up orders right now. Please try again later." };
         }
       }
 

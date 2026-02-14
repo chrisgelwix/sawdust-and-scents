@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Product } from './schemas/product.schema';
@@ -31,13 +31,22 @@ export class ProductsService {
       .exec();
   }
 
+  async softDelete(id: string): Promise<Product> {
+    const product = await this.productModel.findById(id).exec();
+    if (!product) {
+      throw new NotFoundException(`Product "${id}" not found`);
+    }
+    product.isActive = false;
+    return product.save();
+  }
+
   async findByAttribute(key: string, value: any): Promise<Product[]> {
     const query = { [`attributes.${key}`]: value };
     return this.productModel.find(query).exec();
   }
 
   async findByScent(scent: string): Promise<Product[]> {
-    const query = { 'attributes.scent': scent };
+    const query = { 'attributes.scent': scent, isActive: true };
     return this.productModel.find(query).exec();
   }
 
@@ -45,5 +54,29 @@ export class ProductsService {
     return this.productModel.distinct('attributes.scent').exec() as Promise<
       string[]
     >;
+  }
+
+  async findByCategory(category: string): Promise<Product[]> {
+    return this.productModel
+      .find({ category, isActive: true })
+      .exec();
+  }
+
+  async search(query: string): Promise<Product[]> {
+    const regex = new RegExp(query, 'i');
+    return this.productModel
+      .find({
+        isActive: true,
+        $or: [
+          { name: regex },
+          { description: regex },
+          { category: regex },
+        ],
+      })
+      .exec();
+  }
+
+  async getCategories(): Promise<string[]> {
+    return this.productModel.distinct('category').exec() as Promise<string[]>;
   }
 }

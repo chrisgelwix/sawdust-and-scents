@@ -1,6 +1,7 @@
 import {
   Controller,
   Put,
+  Post,
   Body,
   Get,
 } from '@nestjs/common';
@@ -8,6 +9,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagg
 import { AuthenticatedUser } from '../auth/decorators/user.decorator';
 import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -19,7 +21,8 @@ export class UsersController {
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'Return user profile' })
   async getProfile(@AuthenticatedUser() user: any) {
-    return this.usersService.findByKeycloakId(user.sub);
+    // Auto-provisions a PostgreSQL record on first access
+    return this.usersService.findOrCreateByKeycloakId(user.sub, user.email);
   }
 
   @Put('profile')
@@ -30,5 +33,16 @@ export class UsersController {
     @Body() updateData: Partial<User>
   ) {
     return this.usersService.updateProfile(user.sub, updateData);
+  }
+
+  @Public()
+  @Post('guest')
+  @ApiOperation({ summary: 'Register as a guest user (no Keycloak account)' })
+  @ApiResponse({ status: 201, description: 'Guest user created' })
+  @ApiResponse({ status: 409, description: 'Email already in use' })
+  async createGuest(
+    @Body() data: { email: string; phoneNumber?: string }
+  ) {
+    return this.usersService.createGuest(data);
   }
 }

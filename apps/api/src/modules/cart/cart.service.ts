@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CartItem } from '@sdas/shared-types';
 
 @Injectable()
@@ -19,6 +19,36 @@ export class CartService {
       cart.push(item);
     }
 
+    this.carts.set(userId, cart);
+    return cart;
+  }
+
+  async updateItemQuantity(
+    userId: string,
+    productId: string,
+    quantity: number
+  ): Promise<CartItem[]> {
+    const cart = await this.getCart(userId);
+    const item = cart.find((i) => i.productId === productId);
+    if (!item) {
+      throw new NotFoundException(
+        `Product "${productId}" not found in cart`
+      );
+    }
+    item.quantity = quantity;
+    this.carts.set(userId, cart);
+    return cart;
+  }
+
+  async removeItem(userId: string, productId: string): Promise<CartItem[]> {
+    const cart = await this.getCart(userId);
+    const index = cart.findIndex((i) => i.productId === productId);
+    if (index === -1) {
+      throw new NotFoundException(
+        `Product "${productId}" not found in cart`
+      );
+    }
+    cart.splice(index, 1);
     this.carts.set(userId, cart);
     return cart;
   }

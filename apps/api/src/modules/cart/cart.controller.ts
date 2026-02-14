@@ -2,9 +2,10 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Delete,
   Body,
-  UseGuards,
+  Param,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { CartService } from './cart.service';
@@ -35,8 +36,35 @@ export class CartController {
     return this.cartService.addToCart(user.sub, item);
   }
 
+  @Put('items/:productId')
+  @ApiOperation({ summary: 'Update quantity of a cart item' })
+  @ApiResponse({ status: 200, description: 'Cart item updated' })
+  @ApiResponse({ status: 404, description: 'Item not in cart' })
+  async updateItem(
+    @AuthenticatedUser() user: any,
+    @Param('productId') productId: string,
+    @Body() body: { quantity: number }
+  ) {
+    return this.cartService.updateItemQuantity(
+      user.sub,
+      productId,
+      body.quantity
+    );
+  }
+
+  @Delete('items/:productId')
+  @ApiOperation({ summary: 'Remove a single item from cart' })
+  @ApiResponse({ status: 200, description: 'Item removed from cart' })
+  @ApiResponse({ status: 404, description: 'Item not in cart' })
+  async removeItem(
+    @AuthenticatedUser() user: any,
+    @Param('productId') productId: string
+  ) {
+    return this.cartService.removeItem(user.sub, productId);
+  }
+
   @Delete()
-  @ApiOperation({ summary: 'Clear cart' })
+  @ApiOperation({ summary: 'Clear entire cart' })
   @ApiResponse({ status: 200, description: 'Cart cleared' })
   async clearCart(@AuthenticatedUser() user: any) {
     return this.cartService.clearCart(user.sub);
@@ -45,6 +73,7 @@ export class CartController {
   @Post('checkout')
   @ApiOperation({ summary: 'Process checkout' })
   @ApiResponse({ status: 201, description: 'Order created successfully' })
+  @ApiResponse({ status: 400, description: 'Cart is empty' })
   async checkout(@AuthenticatedUser() user: any) {
     return this.checkoutService.checkout(user.sub);
   }

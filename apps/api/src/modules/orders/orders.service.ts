@@ -1,4 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from './entities/order.entity';
@@ -20,6 +25,30 @@ export class OrdersService {
     return this.ordersRepository.save(newOrder);
   }
 
+  async findAll(page = 1, limit = 50): Promise<{ orders: Order[]; total: number }> {
+    const [orders, total] = await this.ordersRepository.findAndCount({
+      relations: ['items', 'user'],
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { orders, total };
+  }
+
+  async findOne(id: string): Promise<Order | null> {
+    return this.ordersRepository.findOne({
+      where: { id },
+      relations: ['items', 'user'],
+    });
+  }
+
+  async findByOrderNumber(orderNumber: number): Promise<Order | null> {
+    return this.ordersRepository.findOne({
+      where: { orderNumber },
+      relations: ['items', 'user'],
+    });
+  }
+
   async findByUser(userId: string): Promise<Order[]> {
     return this.ordersRepository.find({
       where: { user: { id: userId } },
@@ -36,40 +65,22 @@ export class OrdersService {
 
       if (!user) return [];
 
+      // Security: If this user has a Keycloak account, they must sign in
+      // to view their orders — don't expose registered users' data to guests
+      if (user.keycloakId) {
+        throw new ForbiddenException(
+          'This email or phone number is associated with an existing account. Please sign in to view your orders.'
+        );
+      }
+
       return this.findByUser(user.id);
     } catch (error) {
+      // Re-throw ForbiddenException so it reaches the chatbot/controller
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
       this.errorService.handleError(error, 'OrdersService.findByContactInfo');
-    }
-  }
-
-  async findAll(): Promise<Order[]> {
-    return this.ordersRepository.find({
-      relations: ['items', 'user'],
-    });
-  }
-
-  async findOne(id: string): Promise<Order | null> {
-    return this.ordersRepository.findOne({
-      where: { id },
-      relations: ['items'],
-    });
-  }
-
-  async update(id: string, updateData: Partial<Order>): Promise<Order> {
-    await this.ordersRepository.update(id, updateData);
-    return (await this.findOne(id))!;
-  }
-
-  async getPendingOrdersCount(): Promise<number> {
-    try {
-      const count = await this.ordersRepository.count({
-        where: [{ status: 'pending' }, { status: 'processing' }],
-      });
-      return count;
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to get pending orders count: ${errorMessage}`);
+      return [];
     }
   }
 
@@ -81,9 +92,70 @@ export class OrdersService {
         order: { createdAt: 'DESC' },
       });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to find orders by status: ${errorMessage}`);
+      this.errorService.handleError(error, 'OrdersService.findByStatus');
+      return [];
+    }
+  }
+
+  async update(id: string, updateData: Partial<Order>): Promise<Order> {
+    const order = await this.findOne(id);
+    if (!order) {
+      throw new NotFoundException(`Order "${id}" not found`);
+    }
+    await this.ordersRepository.update(id, updateData);
+    return (await this.findOne(id))!;
+  }
+
+  async cancelOrder(
+    id: string,
+    reason?: string
+  ): Promise<Order> {
+    const order = await this.findOne(id);
+    if (!order) {
+      throw new NotFoundException(`Order "${id}" not found`);
+    }
+
+    const nonCancellable = ['shipped', 'delivered', 'cancelled'];
+    if (nonCancellable.includes(order.status)) {
+      throw new BadRequestException(
+        `Cannot cancel an order that is already "${order.status}"`
+      );
+    }
+
+    await this.ordersRepository.update(id, {
+      status: 'cancelled',
+      cancelledReason: reason || 'Cancelled by user',
+    });
+    return (await this.findOne(id))!;
+  }
+
+  async getPendingOrdersCount(): Promise<number> {
+    try {
+      return await this.ordersRepository.count({
+        where: [{ status: 'pending' }, { status: 'processing' }],
+      });
+    } catch (error) {
+      this.errorService.handleError(
+        error,
+        'OrdersService.getPendingOrdersCount'
+      );
+      return 0;
+    }
+  }
+
+  async getCompletedOrders(): Promise<Order[]> {
+    try {
+      return await this.ordersRepository.find({
+        where: { status: 'delivered' },
+        relations: ['items', 'user'],
+        order: { createdAt: 'DESC' },
+      });
+    } catch (error) {
+      this.errorService.handleError(
+        error,
+        'OrdersService.getCompletedOrders'
+      );
+      return [];
     }
   }
 }

@@ -4,6 +4,7 @@ import {
   Generated,
   PrimaryGeneratedColumn,
   CreateDateColumn,
+  UpdateDateColumn,
   ManyToOne,
   OneToMany,
 } from 'typeorm';
@@ -39,6 +40,12 @@ export class Order {
   @Column({ nullable: true })
   shippingLabelUrl?: string;
 
+  @Column({ nullable: true })
+  shippingCarrier?: string;
+
+  @Column({ nullable: true })
+  cancelledReason?: string;
+
   // Shipping Address fields
   @Column({ nullable: true })
   shippingName?: string;
@@ -63,4 +70,7 @@ export class Order {
 
   @CreateDateColumn()
   createdAt!: Date;
+
+  @UpdateDateColumn()
+  updatedAt!: Date;
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -32,9 +32,7 @@ export class ManagementController {
   @ApiOperation({ summary: 'Get management dashboard overview' })
   @ApiResponse({ status: 200, description: 'Aggregated dashboard data' })
   async getOverview() {
-    // Aggregate data from MongoDB, PostgreSQL
     return this.managementService.getOverview();
-    //ADP API (for now) will be added later
   }
 
   @Get('inventory/alerts')
@@ -44,7 +42,6 @@ export class ManagementController {
     description: 'List of products needing attention',
   })
   async getInventoryAlerts() {
-    // Returns only products that need immediate attention
     return this.managementService.getLowStockAlerts();
   }
 
@@ -53,26 +50,44 @@ export class ManagementController {
   @ApiResponse({ status: 200, description: 'Sync results' })
   async syncEmployees() {
     const result = await this.hrService.syncEmployees();
-
     return {
       message: 'Employee sync completed',
       stats: result,
     };
   }
 
-  // Get all orders
+  // ─── Orders ───
+
   @Get('orders')
   @ApiOperation({ summary: 'Get all orders (management view)' })
   @ApiResponse({ status: 200, description: 'List of all orders' })
   async getAllOrders() {
-    const orders = await this.ordersService.findAll();
+    const result = await this.ordersService.findAll();
     return {
-      total: orders.length,
-      orders,
+      total: result.total,
+      orders: result.orders,
     };
   }
 
-  //Get orders by status
+  @Get('orders/completed')
+  @ApiOperation({ summary: 'Get completed orders' })
+  @ApiResponse({ status: 200, description: 'List of completed orders' })
+  async getCompletedOrders() {
+    const completedOrders = await this.ordersService.getCompletedOrders();
+    return {
+      total: completedOrders.length,
+      completedOrders,
+    };
+  }
+
+  @Get('orders/pending/count')
+  @ApiOperation({ summary: 'Get count of pending/processing orders' })
+  @ApiResponse({ status: 200, description: 'Pending orders count' })
+  async getPendingOrdersCount() {
+    const count = await this.ordersService.getPendingOrdersCount();
+    return { pendingCount: count };
+  }
+
   @Get('orders/status/:status')
   @ApiOperation({ summary: 'Get orders by status' })
   @ApiResponse({ status: 200, description: 'Filtered list of orders' })
@@ -84,6 +99,8 @@ export class ManagementController {
       orders,
     };
   }
+
+  // ─── Inventory ───
 
   @Get('inventory/report')
   @ApiOperation({ summary: 'Get detailed inventory report' })
@@ -116,6 +133,18 @@ export class ManagementController {
     };
   }
 
+  @Put('inventory/:productId/stock')
+  @ApiOperation({ summary: 'Update stock level for a product' })
+  @ApiResponse({ status: 200, description: 'Stock updated' })
+  async updateStock(
+    @Param('productId') productId: string,
+    @Body() body: { quantityChange: number }
+  ) {
+    return this.inventoryService.updateStock(productId, body.quantityChange);
+  }
+
+  // ─── HR / Employees ───
+
   @Get('employees/:employeeId/payroll')
   @ApiOperation({ summary: 'Get payroll data for an employee' })
   @ApiResponse({ status: 200, description: 'Payroll information' })
@@ -134,6 +163,8 @@ export class ManagementController {
     }
   }
 
+  // ─── Analytics ───
+
   @Get('analytics/summary')
   @ApiOperation({ summary: 'Get overall analytics summary' })
   @ApiResponse({
@@ -141,23 +172,27 @@ export class ManagementController {
     description: 'Sales, inventory, and payroll summary',
   })
   async getAnalyticsSummary() {
-    const [orders, products, lowStock, payrollSummary] = await Promise.all([
-      this.ordersService.findAll(),
-      this.productsService.findAll(),
-      this.inventoryService.getLowStockItems(),
-      this.hrService.getPayrollSummary().catch(() => null),
-    ]);
+    const [ordersResult, products, lowStock, payrollSummary] =
+      await Promise.all([
+        this.ordersService.findAll(),
+        this.productsService.findAll(),
+        this.inventoryService.getLowStockItems(),
+        this.hrService.getPayrollSummary().catch(() => null),
+      ]);
+
+    const orders = ordersResult.orders;
 
     const revenue = orders
       .filter((order) => order.status === 'delivered')
       .reduce((sum, order) => sum + Number(order.totalAmount), 0);
 
-    const avgOrderValue = orders.length > 0 ? revenue / orders.length : 0;
+    const avgOrderValue =
+      orders.length > 0 ? revenue / orders.length : 0;
 
     return {
       sales: {
         totalRevenue: revenue,
-        totalOrders: orders.length,
+        totalOrders: ordersResult.total,
         averageOrderValue: avgOrderValue,
       },
       inventory: {
