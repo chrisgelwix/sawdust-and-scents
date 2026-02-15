@@ -12,6 +12,7 @@ import { PaymentsModule } from '../modules/payments/payments.module';
 import { DatabaseModule } from '../modules/database/database.module';
 import { ManagementModule } from '../modules/management/management.module';
 import { CommonModule } from '../modules/common/common.module';
+import { SubscriptionsModule } from '../modules/subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { CommonModule } from '../modules/common/common.module';
     PaymentsModule,
     DatabaseModule,
     ManagementModule,
+    SubscriptionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

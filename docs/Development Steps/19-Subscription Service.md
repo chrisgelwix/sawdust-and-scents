@@ -4,9 +4,13 @@
 
 One-time purchases are great, but **subscriptions are the lifeblood** of a product-based business. A monthly candle subscription creates predictable recurring revenue, reduces customer acquisition cost (you only sell once), and keeps your brand top-of-mind when a beautifully curated box arrives at someone's door every month.
 
+To lower the barrier to entry, every subscription starts with a **1-month free trial** — the customer gets their first box at no cost. In exchange, they commit to a **3-month minimum** (the trial month + 2 paid months). This gives customers a risk-free way to experience the product while giving us a predictable revenue floor once they convert.
+
 In this step we'll build:
+
 - Subscription plan definitions (stored in MongoDB alongside products)
 - User subscription management (stored in PostgreSQL alongside users/orders)
+- **1-month free trial** with Stripe `trial_period_days` and a **3-month minimum commitment** enforced on cancellation
 - Stripe-powered recurring billing via webhooks
 - Auto-fulfillment: when Stripe charges succeed, an order is automatically created and queued for shipping
 
@@ -15,13 +19,12 @@ In this step we'll build:
 ## 2. Shared Types
 
 ### 2.1 Add Subscription Types
-File: `libs/shared/types/src/lib/models.ts`
 
-**Tutorial Action**: Add the new enums and interfaces alongside the existing types.
+File: `libs/shared/types/src/lib/subscription.types.ts`
+
+**Tutorial Action**: Create a new domain-specific types file for subscriptions. Our shared types library is organized by domain — each file contains the enums and interfaces for a single feature area (see `user.types.ts`, `product.types.ts`, `order.types.ts`, `cart.types.ts`). This keeps related types co-located and makes the library easy to navigate.
 
 ```typescript
-// ─── Subscription Types ───
-
 export enum SubscriptionStatus {
   ACTIVE = 'active',
   PAUSED = 'paused',
@@ -37,14 +40,16 @@ export enum BillingInterval {
 
 export interface SubscriptionPlan {
   id: string;
-  name: string;              // e.g., "Ember Box", "Blaze Box"
+  name: string; // e.g., "Ember Box", "Blaze Box"
   description: string;
-  price: number;             // Monthly price
-  candleCount: number;       // How many candles per shipment
+  price: number; // Monthly price
+  candleCount: number; // How many candles per shipment
   billingInterval: BillingInterval;
-  stripePriceId: string;     // Stripe Price ID for recurring billing
+  stripePriceId: string; // Stripe Price ID for recurring billing
+  trialDays: number; // Free trial length in days (default: 30 → 1 month)
+  minimumCommitmentMonths: number; // Minimum total months including trial (default: 3)
   isActive: boolean;
-  features: string[];        // e.g., ["Free shipping", "Exclusive scents"]
+  features: string[]; // e.g., ["Free shipping", "Exclusive scents", "1-month free trial"]
 }
 
 export interface Subscription {
@@ -55,7 +60,10 @@ export interface Subscription {
   stripeSubscriptionId: string;
   currentPeriodStart: Date;
   currentPeriodEnd: Date;
-  scentPreferences?: string[];   // User's preferred scent families
+  trialStart?: Date; // When the free trial began
+  trialEnd?: Date; // When the free trial ends (≈ 30 days after start)
+  minimumCommitmentEnd?: Date; // Earliest date the user can cancel (≈ 3 months after start)
+  scentPreferences?: string[]; // User's preferred scent families
   createdAt: Date;
   cancelledAt?: Date;
 }
@@ -66,9 +74,10 @@ export interface Subscription {
 ## 3. Subscription Plan Schema (MongoDB)
 
 ### 3.1 Create the Plan Schema
+
 File: `apps/api/src/modules/subscriptions/schemas/subscription-plan.schema.ts`
 
-**Tutorial Action**: Plans live in MongoDB alongside products because they're catalog data — they describe *what* you can buy, not *who* bought it.
+**Tutorial Action**: Plans live in MongoDB alongside products because they're catalog data — they describe _what_ you can buy, not _who_ bought it.
 
 ```typescript
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
@@ -94,6 +103,12 @@ export class SubscriptionPlan extends Document {
   @Prop({ required: true })
   stripePriceId!: string;
 
+  @Prop({ default: 30 })
+  trialDays!: number; // Free trial length in days (default: 30 → 1 month)
+
+  @Prop({ default: 3 })
+  minimumCommitmentMonths!: number; // Minimum months including trial (default: 3)
+
   @Prop({ default: true })
   isActive!: boolean;
 
@@ -115,6 +130,7 @@ export const SubscriptionPlanSchema =
 ## 4. User Subscription Entity (PostgreSQL)
 
 ### 4.1 Create the Subscription Entity
+
 File: `apps/api/src/modules/subscriptions/entities/subscription.entity.ts`
 
 **Tutorial Action**: The actual subscription record ties a user to a plan. This lives in PostgreSQL because it has strong relationships with Users and Orders.
@@ -140,7 +156,7 @@ export class Subscription {
   @Column()
   planId!: string; // References MongoDB SubscriptionPlan._id
 
-  @Column({ default: 'active' })
+  @Column({ default: 'trialing' })
   status!: string; // active, paused, cancelled, past_due, trialing
 
   @Column({ nullable: true })
@@ -154,6 +170,15 @@ export class Subscription {
 
   @Column({ type: 'timestamp', nullable: true })
   currentPeriodEnd?: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  trialStart?: Date; // When the free trial began
+
+  @Column({ type: 'timestamp', nullable: true })
+  trialEnd?: Date; // When the free trial ends (≈ 30 days after start)
+
+  @Column({ type: 'timestamp', nullable: true })
+  minimumCommitmentEnd?: Date; // Earliest the user can cancel without penalty (≈ 3 months after start)
 
   @Column({ type: 'simple-array', nullable: true })
   scentPreferences?: string[]; // e.g., ['woody', 'vanilla', 'fresh']
@@ -170,6 +195,7 @@ export class Subscription {
 ```
 
 ### 4.2 Update User Entity
+
 File: `apps/api/src/modules/users/entities/user.entity.ts`
 
 **Tutorial Action**: Add the relationship from User → Subscriptions.
@@ -187,6 +213,7 @@ subscriptions!: Subscription[];
 ## 5. Subscription Plans Service
 
 ### 5.1 Create the Plans Service
+
 File: `apps/api/src/modules/subscriptions/subscription-plans.service.ts`
 
 **Tutorial Action**: This service manages the plan catalog (CRUD for admins, read for customers).
@@ -245,9 +272,10 @@ export class SubscriptionPlansService {
 ## 6. Subscription Service (Core Business Logic)
 
 ### 6.1 Create the Subscription Service
+
 File: `apps/api/src/modules/subscriptions/subscriptions.service.ts`
 
-**Tutorial Action**: This is the core service that handles subscribing, pausing, cancelling, and the auto-fulfillment loop.
+**Tutorial Action**: This is the core service that handles subscribing, pausing, cancelling, and the auto-fulfillment loop. New subscriptions start in a **`trialing`** state with a 1-month free trial and a 3-month minimum commitment. Stripe handles the trial natively — no charges occur until the trial ends.
 
 ```typescript
 import {
@@ -279,8 +307,15 @@ export class SubscriptionsService {
 
   /**
    * Subscribe a user to a plan.
+   *
+   * Every new subscription starts in the `trialing` status with a 1-month
+   * free trial. The customer is not charged until the trial ends.
+   * A 3-month minimum commitment is enforced — the user cannot cancel
+   * until 3 months after the subscription start date (trial month + 2
+   * paid months).
+   *
    * In a real implementation, this would create a Stripe Subscription
-   * and store the stripeSubscriptionId.
+   * with `trial_period_days` and store the stripeSubscriptionId.
    */
   async subscribe(
     userId: string,
@@ -294,9 +329,12 @@ export class SubscriptionsService {
         throw new BadRequestException('This plan is no longer available');
       }
 
-      // Check if user already has an active subscription
+      // Check if user already has an active or trialing subscription
       const existing = await this.subscriptionRepository.findOne({
-        where: { user: { id: userId }, status: 'active' },
+        where: [
+          { user: { id: userId }, status: 'active' },
+          { user: { id: userId }, status: 'trialing' },
+        ],
       });
       if (existing) {
         throw new BadRequestException(
@@ -304,25 +342,46 @@ export class SubscriptionsService {
         );
       }
 
-      // TODO: Create Stripe Subscription here
+      // TODO: Create Stripe Subscription with trial here
       // const stripeSubscription = await stripe.subscriptions.create({
       //   customer: stripeCustomerId,
       //   items: [{ price: plan.stripePriceId }],
+      //   trial_period_days: plan.trialDays,  // 30 days free trial
       // });
 
       const now = new Date();
-      const periodEnd = new Date(now);
-      periodEnd.setMonth(periodEnd.getMonth() + 1); // Monthly
+
+      // Trial period: 1 month (≈ 30 days, controlled by plan.trialDays)
+      const trialEnd = new Date(now);
+      trialEnd.setDate(trialEnd.getDate() + (plan.trialDays || 30));
+
+      // First billing period starts when trial ends
+      const periodEnd = new Date(trialEnd);
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+      // Minimum commitment: 3 months from subscription start (trial + 2 paid months)
+      const minimumCommitmentEnd = new Date(now);
+      minimumCommitmentEnd.setMonth(
+        minimumCommitmentEnd.getMonth() + (plan.minimumCommitmentMonths || 3)
+      );
 
       const subscription = this.subscriptionRepository.create({
         user: { id: userId } as any,
         planId,
-        status: 'active',
+        status: 'trialing',
         // stripeSubscriptionId: stripeSubscription.id,
         currentPeriodStart: now,
-        currentPeriodEnd: periodEnd,
+        currentPeriodEnd: trialEnd,
+        trialStart: now,
+        trialEnd,
+        minimumCommitmentEnd,
         scentPreferences: scentPreferences || [],
       });
+
+      this.logger.log(
+        `Subscription created for user ${userId} — trialing until ${trialEnd.toISOString()}, ` +
+          `minimum commitment until ${minimumCommitmentEnd.toISOString()}`
+      );
 
       return this.subscriptionRepository.save(subscription);
     } catch (error) {
@@ -337,7 +396,39 @@ export class SubscriptionsService {
   }
 
   /**
-   * Pause a subscription (user can resume later)
+   * Activate a trialing subscription.
+   * Called by the Stripe webhook when the trial ends and the first
+   * payment succeeds (`customer.subscription.updated` with status
+   * changing from `trialing` → `active`).
+   */
+  async activateAfterTrial(stripeSubscriptionId: string): Promise<void> {
+    const subscription = await this.subscriptionRepository.findOne({
+      where: { stripeSubscriptionId, status: 'trialing' },
+    });
+
+    if (!subscription) {
+      this.logger.warn(
+        `No trialing subscription found for Stripe ID ${stripeSubscriptionId}`
+      );
+      return;
+    }
+
+    subscription.status = 'active';
+    const now = new Date();
+    subscription.currentPeriodStart = now;
+    const periodEnd = new Date(now);
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+    subscription.currentPeriodEnd = periodEnd;
+
+    await this.subscriptionRepository.save(subscription);
+    this.logger.log(
+      `Subscription ${subscription.id} activated after trial — first payment collected`
+    );
+  }
+
+  /**
+   * Pause a subscription (user can resume later).
+   * Only active (post-trial) subscriptions can be paused.
    */
   async pause(subscriptionId: string, userId: string): Promise<Subscription> {
     const subscription = await this.findOneForUser(subscriptionId, userId);
@@ -363,9 +454,7 @@ export class SubscriptionsService {
     const subscription = await this.findOneForUser(subscriptionId, userId);
 
     if (subscription.status !== 'paused') {
-      throw new BadRequestException(
-        'Only paused subscriptions can be resumed'
-      );
+      throw new BadRequestException('Only paused subscriptions can be resumed');
     }
 
     // TODO: Resume in Stripe
@@ -375,13 +464,37 @@ export class SubscriptionsService {
   }
 
   /**
-   * Cancel a subscription
+   * Cancel a subscription.
+   *
+   * Enforces the 3-month minimum commitment:
+   * - During the trial month: cancellation is blocked (you agreed to 3 months).
+   * - During months 2–3 (the first two paid months): cancellation is blocked.
+   * - After month 3: cancellation schedules at end of current billing period.
+   *
+   * The `minimumCommitmentEnd` date on the subscription record is the
+   * source of truth for when early-cancellation restrictions lift.
    */
   async cancel(subscriptionId: string, userId: string): Promise<Subscription> {
     const subscription = await this.findOneForUser(subscriptionId, userId);
 
     if (subscription.status === 'cancelled') {
       throw new BadRequestException('Subscription is already cancelled');
+    }
+
+    // Enforce minimum commitment (3 months)
+    if (subscription.minimumCommitmentEnd) {
+      const now = new Date();
+      if (now < subscription.minimumCommitmentEnd) {
+        const remaining = Math.ceil(
+          (subscription.minimumCommitmentEnd.getTime() - now.getTime()) /
+            (1000 * 60 * 60 * 24)
+        );
+        throw new BadRequestException(
+          `This subscription has a 3-month minimum commitment. ` +
+            `You can cancel after ${subscription.minimumCommitmentEnd.toLocaleDateString()} ` +
+            `(${remaining} day(s) remaining).`
+        );
+      }
     }
 
     // TODO: Cancel in Stripe (at period end so user gets remaining time)
@@ -418,11 +531,16 @@ export class SubscriptionsService {
   }
 
   /**
-   * Get active subscription for a user (there should only be one)
+   * Get active subscription for a user (there should only be one).
+   * Returns both `active` and `trialing` subscriptions — from the
+   * user's perspective, a trial IS their active subscription.
    */
   async findActiveByUser(userId: string): Promise<Subscription | null> {
     return this.subscriptionRepository.findOne({
-      where: { user: { id: userId }, status: 'active' },
+      where: [
+        { user: { id: userId }, status: 'active' },
+        { user: { id: userId }, status: 'trialing' },
+      ],
     });
   }
 
@@ -540,19 +658,13 @@ export class SubscriptionsService {
 ## 7. Subscription Controller
 
 ### 7.1 Create the Controller
+
 File: `apps/api/src/modules/subscriptions/subscriptions.controller.ts`
 
 **Tutorial Action**: Expose the subscription API. Note that all endpoints require authentication — only account holders can subscribe (not guests).
 
 ```typescript
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Param,
-  Body,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -624,30 +736,21 @@ export class SubscriptionsController {
   @Put(':id/pause')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Pause my subscription' })
-  async pause(
-    @Param('id') id: string,
-    @AuthenticatedUser() user: any
-  ) {
+  async pause(@Param('id') id: string, @AuthenticatedUser() user: any) {
     return this.subscriptionsService.pause(id, user.sub);
   }
 
   @Put(':id/resume')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Resume my paused subscription' })
-  async resume(
-    @Param('id') id: string,
-    @AuthenticatedUser() user: any
-  ) {
+  async resume(@Param('id') id: string, @AuthenticatedUser() user: any) {
     return this.subscriptionsService.resume(id, user.sub);
   }
 
   @Put(':id/cancel')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cancel my subscription' })
-  async cancel(
-    @Param('id') id: string,
-    @AuthenticatedUser() user: any
-  ) {
+  async cancel(@Param('id') id: string, @AuthenticatedUser() user: any) {
     return this.subscriptionsService.cancel(id, user.sub);
   }
 
@@ -691,6 +794,7 @@ export class SubscriptionsController {
 ## 8. Subscription Module
 
 ### 8.1 Create the Module
+
 File: `apps/api/src/modules/subscriptions/subscriptions.module.ts`
 
 **Tutorial Action**: Wire everything together. Note the cross-module imports — subscriptions depend on Orders and Products for fulfillment.
@@ -727,6 +831,7 @@ export class SubscriptionsModule {}
 ```
 
 ### 8.2 Register in AppModule
+
 File: `apps/api/src/app/app.module.ts`
 
 **Tutorial Action**: Add `SubscriptionsModule` to the imports array.
@@ -748,6 +853,7 @@ export class AppModule {}
 ## 9. Stripe Webhook Integration
 
 ### 9.1 Handling Subscription Webhooks
+
 File: `apps/api/src/modules/payments/payments.controller.ts`
 
 **Tutorial Action**: Extend the existing webhook handler to process subscription-related events from Stripe.
@@ -760,23 +866,55 @@ async handleWebhook(@Body() payload: any) {
   const event = payload;
 
   switch (event.type) {
-    case 'invoice.payment_succeeded':
+    case 'customer.subscription.updated': {
+      // Trial ended → first charge succeeded → activate subscription
+      const stripeSubscription = event.data.object;
+      const previousStatus = event.data.previous_attributes?.status;
+
+      if (
+        previousStatus === 'trialing' &&
+        stripeSubscription.status === 'active'
+      ) {
+        await this.subscriptionsService.activateAfterTrial(
+          stripeSubscription.id
+        );
+      }
+      break;
+    }
+
+    case 'customer.subscription.trial_will_end': {
+      // Stripe fires this 3 days before trial ends.
+      // Use it to notify the customer that billing is about to start.
+      const stripeSubscription = event.data.object;
+      this.logger.log(
+        `Trial ending soon for Stripe subscription ${stripeSubscription.id}`
+      );
+      // TODO: Send "your trial is ending" email to the customer
+      break;
+    }
+
+    case 'invoice.payment_succeeded': {
       // A subscription payment went through — fulfill the order
       const subscriptionId = event.data.object.subscription;
       if (subscriptionId) {
         await this.subscriptionsService.fulfillSubscription(subscriptionId);
       }
       break;
+    }
 
-    case 'invoice.payment_failed':
+    case 'invoice.payment_failed': {
       // Payment failed — mark subscription as past_due
-      // TODO: Update subscription status
+      // This can happen when the trial ends and the first charge fails,
+      // or on any subsequent billing cycle.
+      // TODO: Update subscription status to 'past_due'
       break;
+    }
 
-    case 'customer.subscription.deleted':
+    case 'customer.subscription.deleted': {
       // Subscription fully cancelled in Stripe
       // TODO: Update local subscription record
       break;
+    }
   }
 
   return { received: true };
@@ -785,11 +923,21 @@ async handleWebhook(@Body() payload: any) {
 
 **Note**: In production, you would verify the webhook signature using `stripe.webhooks.constructEvent()` with your webhook secret. Never trust raw payloads without signature verification.
 
+**Trial Lifecycle Flow**:
+
+1. **User subscribes** → Stripe subscription created with `trial_period_days: 30` → local status: `trialing`
+2. **Day 27** → Stripe fires `customer.subscription.trial_will_end` → send reminder email
+3. **Day 30 (trial ends)** → Stripe charges the card → fires `customer.subscription.updated` (trialing → active) → local status: `active`
+4. **If first charge fails** → Stripe fires `invoice.payment_failed` → local status: `past_due`
+5. **Months 1–3** → user cannot cancel (minimum commitment enforced)
+6. **Month 4+** → user can cancel freely
+
 ---
 
 ## 10. Environment Variables
 
 Add to `.env.local`:
+
 ```
 # Stripe Configuration
 STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
@@ -800,15 +948,23 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_signing_secret
 
 ## 11. Implementation Checklist
 
-- [ ] **Shared Types**: Add `SubscriptionStatus`, `BillingInterval`, `SubscriptionPlan`, `Subscription` interfaces
-- [ ] **Schema**: Create `SubscriptionPlan` Mongoose schema
-- [ ] **Entity**: Create `Subscription` TypeORM entity
+- [ ] **Shared Types**: Add `SubscriptionStatus`, `BillingInterval`, `SubscriptionPlan`, `Subscription` interfaces (including `trialDays`, `minimumCommitmentMonths`, `trialStart`, `trialEnd`, `minimumCommitmentEnd`)
+- [ ] **Schema**: Create `SubscriptionPlan` Mongoose schema with `trialDays` (default: 30) and `minimumCommitmentMonths` (default: 3)
+- [ ] **Entity**: Create `Subscription` TypeORM entity with `trialStart`, `trialEnd`, `minimumCommitmentEnd` columns (default status: `trialing`)
 - [ ] **Entity**: Update `User` entity with subscriptions relationship
 - [ ] **Service**: Create `SubscriptionPlansService` (plan CRUD)
-- [ ] **Service**: Create `SubscriptionsService` (subscribe/pause/resume/cancel/fulfill)
+- [ ] **Service**: Create `SubscriptionsService` with trial-aware logic:
+  - [ ] `subscribe()` — starts in `trialing` status, calculates trial end (30 days) and minimum commitment end (3 months)
+  - [ ] `activateAfterTrial()` — transitions `trialing` → `active` when Stripe confirms first payment
+  - [ ] `cancel()` — enforces 3-month minimum commitment before allowing cancellation
+  - [ ] `pause()` / `resume()` / `fulfillSubscription()` — unchanged but only apply to `active` subscriptions
 - [ ] **Controller**: Create `SubscriptionsController` with public + auth + admin endpoints
 - [ ] **Module**: Create `SubscriptionsModule` with Mongoose + TypeORM imports
 - [ ] **Module**: Register `SubscriptionsModule` in `AppModule`
-- [ ] **Webhook**: Extend payments webhook for subscription events
+- [ ] **Webhook**: Extend payments webhook for subscription events:
+  - [ ] `customer.subscription.updated` — handle trial → active transition
+  - [ ] `customer.subscription.trial_will_end` — send reminder email 3 days before trial ends
+  - [ ] `invoice.payment_succeeded` — fulfill subscription order
+  - [ ] `invoice.payment_failed` — mark as `past_due`
 - [ ] **Config**: Add Stripe environment variables
-- [ ] **Tests**: Create Playwright API tests for subscription endpoints
+- [ ] **Tests**: Create Playwright API tests for subscription endpoints (including trial flow and minimum commitment enforcement)

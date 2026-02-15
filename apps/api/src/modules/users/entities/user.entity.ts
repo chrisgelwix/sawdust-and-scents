@@ -6,6 +6,7 @@ import {
   OneToMany,
 } from 'typeorm';
 import { Order } from '../../orders/entities/order.entity';
+import { Subscription } from '../../subscriptions/entities/subscription.entity';
 
 @Entity('users')
 export class User {
@@ -24,6 +25,8 @@ export class User {
   @OneToMany(() => Order, (order) => order.user)
   orders!: Order[];
 
+  @OneToMany(() => Subscription, (sub) => sub.user)
+  subscriptions!: Subscription[];
   @CreateDateColumn()
   createdAt!: Date;
 }
