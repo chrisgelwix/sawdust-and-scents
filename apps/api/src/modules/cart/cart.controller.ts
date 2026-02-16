@@ -10,6 +10,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { CartService } from './cart.service';
 import { CheckoutService } from './checkout.service';
+import { UsersService } from '../users/users.service';
 import { AuthenticatedUser } from '../auth/decorators/user.decorator';
 import { CartItem } from '@sdas/shared-types';
 
@@ -19,21 +20,30 @@ import { CartItem } from '@sdas/shared-types';
 export class CartController {
   constructor(
     private readonly cartService: CartService,
-    private readonly checkoutService: CheckoutService
+    private readonly checkoutService: CheckoutService,
+    private readonly usersService: UsersService,
   ) {}
+
+  /** Resolve Keycloak sub → database user ID */
+  private async resolveUserId(keycloakSub: string): Promise<string> {
+    const user = await this.usersService.findOrCreateByKeycloakId(keycloakSub);
+    return user.id;
+  }
 
   @Get()
   @ApiOperation({ summary: 'Get current user cart' })
   @ApiResponse({ status: 200, description: 'Return cart items' })
   async getCart(@AuthenticatedUser() user: any) {
-    return this.cartService.getCart(user.sub);
+    const userId = await this.resolveUserId(user.sub);
+    return this.cartService.getCart(userId);
   }
 
   @Post('items')
   @ApiOperation({ summary: 'Add item to cart' })
   @ApiResponse({ status: 201, description: 'Item added to cart' })
   async addToCart(@AuthenticatedUser() user: any, @Body() item: CartItem) {
-    return this.cartService.addToCart(user.sub, item);
+    const userId = await this.resolveUserId(user.sub);
+    return this.cartService.addToCart(userId, item);
   }
 
   @Put('items/:productId')
@@ -45,8 +55,9 @@ export class CartController {
     @Param('productId') productId: string,
     @Body() body: { quantity: number }
   ) {
+    const userId = await this.resolveUserId(user.sub);
     return this.cartService.updateItemQuantity(
-      user.sub,
+      userId,
       productId,
       body.quantity
     );
@@ -60,14 +71,16 @@ export class CartController {
     @AuthenticatedUser() user: any,
     @Param('productId') productId: string
   ) {
-    return this.cartService.removeItem(user.sub, productId);
+    const userId = await this.resolveUserId(user.sub);
+    return this.cartService.removeItem(userId, productId);
   }
 
   @Delete()
   @ApiOperation({ summary: 'Clear entire cart' })
   @ApiResponse({ status: 200, description: 'Cart cleared' })
   async clearCart(@AuthenticatedUser() user: any) {
-    return this.cartService.clearCart(user.sub);
+    const userId = await this.resolveUserId(user.sub);
+    return this.cartService.clearCart(userId);
   }
 
   @Post('checkout')
@@ -75,6 +88,7 @@ export class CartController {
   @ApiResponse({ status: 201, description: 'Order created successfully' })
   @ApiResponse({ status: 400, description: 'Cart is empty' })
   async checkout(@AuthenticatedUser() user: any) {
-    return this.checkoutService.checkout(user.sub);
+    const userId = await this.resolveUserId(user.sub);
+    return this.checkoutService.checkout(userId);
   }
 }

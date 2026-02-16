@@ -8,7 +8,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from './entities/order.entity';
 import { User } from '../users/entities/user.entity';
+import { Subscription } from '../subscriptions/entities/subscription.entity';
 import { ErrorHandlerService } from '../common/errors/error-handler.service';
+import { OrderStatus, SubscriptionStatus } from '@sdas/shared-types';
+import { RewardsService } from '../rewards/rewards.service';
 
 @Injectable()
 export class OrdersService {
@@ -17,7 +20,10 @@ export class OrdersService {
     private ordersRepository: Repository<Order>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
-    private errorService: ErrorHandlerService
+    @InjectRepository(Subscription)
+    private subscriptionRepository: Repository<Subscription>,
+    private errorService: ErrorHandlerService,
+    private rewardsService: RewardsService
   ) {}
 
   async create(orderData: Partial<Order>): Promise<Order> {
@@ -106,24 +112,44 @@ export class OrdersService {
     return (await this.findOne(id))!;
   }
 
-  async cancelOrder(
-    id: string,
-    reason?: string
-  ): Promise<Order> {
+  async updateStatus(id: string, newStatus: string): Promise<Order> {
     const order = await this.findOne(id);
     if (!order) {
       throw new NotFoundException(`Order "${id}" not found`);
     }
+    const previousStatus = order.status;
+    order.status = newStatus;
+    await this.ordersRepository.save(order);
 
-    const nonCancellable = ['shipped', 'delivered', 'cancelled'];
-    if (nonCancellable.includes(order.status)) {
+    if (newStatus === OrderStatus.DELIVERED && previousStatus !== OrderStatus.DELIVERED) {
+      const activeSub = await this.subscriptionRepository.findOne({
+        where: [
+          { user: { id: order.user.id }, status: SubscriptionStatus.ACTIVE },
+          { user: { id: order.user.id }, status: SubscriptionStatus.TRIALING },
+        ],
+      });
+      await this.rewardsService.earnFromPurchase(
+        order.user.id,
+        order.totalAmount,
+        order.id,
+        activeSub !== null,
+      );
+    }
+    return order;
+  }
+  async cancelOrder(id: string, reason?: string): Promise<Order> {
+    const order = await this.findOne(id);
+    if (!order) throw new NotFoundException('Order not found');
+
+    const nonCancellable = [OrderStatus.SHIPPED, OrderStatus.DELIVERED, OrderStatus.CANCELLED];
+    if (nonCancellable.includes(order.status as OrderStatus)) {
       throw new BadRequestException(
         `Cannot cancel an order that is already "${order.status}"`
       );
     }
 
     await this.ordersRepository.update(id, {
-      status: 'cancelled',
+      status: OrderStatus.CANCELLED,
       cancelledReason: reason || 'Cancelled by user',
     });
     return (await this.findOne(id))!;
@@ -132,7 +158,7 @@ export class OrdersService {
   async getPendingOrdersCount(): Promise<number> {
     try {
       return await this.ordersRepository.count({
-        where: [{ status: 'pending' }, { status: 'processing' }],
+        where: [{ status: OrderStatus.PENDING }, { status: OrderStatus.PAID }],
       });
     } catch (error) {
       this.errorService.handleError(
@@ -146,7 +172,7 @@ export class OrdersService {
   async getCompletedOrders(): Promise<Order[]> {
     try {
       return await this.ordersRepository.find({
-        where: { status: 'delivered' },
+        where: { status: OrderStatus.DELIVERED },
         relations: ['items', 'user'],
         order: { createdAt: 'DESC' },
       });

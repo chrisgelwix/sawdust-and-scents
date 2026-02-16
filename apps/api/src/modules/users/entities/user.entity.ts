@@ -6,6 +6,7 @@ import {
   OneToMany,
 } from 'typeorm';
 import { Order } from '../../orders/entities/order.entity';
+import { PointsTransaction } from '../../rewards/entities/points-transaction.entity';
 import { Subscription } from '../../subscriptions/entities/subscription.entity';
 
 @Entity('users')
@@ -27,6 +28,9 @@ export class User {
 
   @OneToMany(() => Subscription, (sub) => sub.user)
   subscriptions!: Subscription[];
+  
+  @OneToMany(() => PointsTransaction, (pt) => pt.user)
+  pointsTransactions!: PointsTransaction[];
   @CreateDateColumn()
   createdAt!: Date;
 }

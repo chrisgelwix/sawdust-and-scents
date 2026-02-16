@@ -11,6 +11,7 @@ import { SubscriptionPlansService } from './subscription-plans.service';
 import { SubscriptionsController } from './subscriptions.controller';
 import { OrdersModule } from '../orders/orders.module';
 import { ProductsModule } from '../products/products.module';
+import { UsersModule } from '../users/users.module';
 import { ErrorHandlerService } from '../common/errors/error-handler.service';
 
 @Module({
@@ -21,6 +22,7 @@ import { ErrorHandlerService } from '../common/errors/error-handler.service';
     ]),
     OrdersModule,
     ProductsModule,
+    UsersModule,
   ],
   controllers: [SubscriptionsController],
   providers: [SubscriptionsService, SubscriptionPlansService],

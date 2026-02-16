@@ -7,6 +7,7 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { DataResult } from '@remix-run/router/dist/utils';
+import { SubscriptionStatus } from '@sdas/shared-types';
 
 @Entity('subscriptions')
 export class Subscription {
@@ -19,7 +20,7 @@ export class Subscription {
   @Column()
   planId!: string;
 
-  @Column({ default: 'trialing' })
+  @Column({ default: SubscriptionStatus.TRIALING })
   status!: string;
 
   @Column({ nullable: true })

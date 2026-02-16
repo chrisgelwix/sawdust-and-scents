@@ -11,6 +11,7 @@ import { SubscriptionPlansService } from './subscription-plans.service';
 import { OrdersService } from '../orders/orders.service';
 import { ProductsService } from '../products/products.service';
 import { ErrorHandlerService } from '../common/errors/error-handler.service';
+import { SubscriptionStatus, OrderStatus } from '@sdas/shared-types';
 
 @Injectable()
 export class SubscriptionsService {
@@ -71,7 +72,7 @@ export class SubscriptionsService {
       const subscription = this.subscriptionRepository.create({
         user: { id: userId } as any,
         planId,
-        status: 'trialing',
+        status: SubscriptionStatus.TRIALING,
         // stripeSubscriptionId: stripeSubscription.id,
         currentPeriodStart: now,
         currentPeriodEnd: trialEnd,
@@ -99,7 +100,7 @@ export class SubscriptionsService {
 
   async activateAfterTrial(stripeSubscriptionId: string): Promise<void> {
     const subscription = await this.subscriptionRepository.findOne({
-      where: { stripeSubscriptionId, status: 'trialing' },
+      where: { stripeSubscriptionId, status: SubscriptionStatus.TRIALING },
     });
 
     if (!subscription) {
@@ -110,7 +111,7 @@ export class SubscriptionsService {
     }
 
     const now = new Date();
-    subscription.status = 'active';
+    subscription.status = SubscriptionStatus.ACTIVE;
     subscription.currentPeriodStart = now;
     const periodEnd = new Date(now);
     periodEnd.setMonth(periodEnd.getMonth() + 1);
@@ -128,7 +129,7 @@ export class SubscriptionsService {
       userId
     );
 
-    if (subscription.status !== 'active') {
+    if (subscription.status !== SubscriptionStatus.ACTIVE) {
       throw new BadRequestException('Only active subscriptions can be paused');
     }
 
@@ -137,7 +138,7 @@ export class SubscriptionsService {
     //     pause_collection: { behavior: 'void' },
     // });
 
-    subscription.status = 'paused';
+    subscription.status = SubscriptionStatus.PAUSED;
     subscription.pausedAt = new Date();
     return this.saveAndLog(
       subscription,
@@ -151,7 +152,7 @@ export class SubscriptionsService {
       userId
     );
 
-    if (subscription.status !== 'paused') {
+    if (subscription.status !== SubscriptionStatus.PAUSED) {
       throw new BadRequestException('Only paused subscriptions can be resumed');
     }
 
@@ -160,7 +161,7 @@ export class SubscriptionsService {
     //     pause_collection: { behavior: 'resume' },
     // });
 
-    subscription.status = 'active';
+    subscription.status = SubscriptionStatus.ACTIVE;
     subscription.pausedAt = undefined;
     return this.saveAndLog(
       subscription,
@@ -174,7 +175,7 @@ export class SubscriptionsService {
       userId
     );
 
-    if (subscription.status === 'cancelled') {
+    if (subscription.status === SubscriptionStatus.CANCELLED) {
       throw new BadRequestException('Subscription is already cancelled');
     }
 
@@ -199,7 +200,7 @@ export class SubscriptionsService {
     //     cancel_at_period_end: true,
     // });
 
-    subscription.status = 'cancelled';
+    subscription.status = SubscriptionStatus.CANCELLED;
     subscription.cancelledAt = new Date();
     return this.saveAndLog(
       subscription,
@@ -237,8 +238,8 @@ export class SubscriptionsService {
   async findActiveByUser(userId: string): Promise<Subscription | null> {
     return this.subscriptionRepository.findOne({
       where: [
-        { user: { id: userId }, status: 'active' },
-        { user: { id: userId }, status: 'trialing' },
+        { user: { id: userId }, status: SubscriptionStatus.ACTIVE },
+        { user: { id: userId }, status: SubscriptionStatus.TRIALING },
       ],
     });
   }
@@ -284,7 +285,7 @@ export class SubscriptionsService {
       user: subscription.user,
       items: items as any,
       totalAmount,
-      status: 'pending',
+      status: OrderStatus.PENDING,
     });
 
     this.logger.log(

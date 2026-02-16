@@ -28,6 +28,24 @@ test.describe('Orders API', () => {
     expect(Array.isArray(orders)).toBeTruthy();
   });
 
+  test('should get an order by order number', async ({ adminRequest }) => {
+    const listResponse = await adminRequest.get('orders');
+    const data = await listResponse.json();
+
+    if (data.orders.length > 0) {
+      const orderNumber = data.orders[0].orderNumber;
+      const response = await adminRequest.get(`orders/number/${orderNumber}`);
+      expect(response.status()).toBe(200);
+      const order = await response.json();
+      expect(order).toHaveProperty('orderNumber', orderNumber);
+    }
+  });
+
+  test('should return 404 for non-existent order number', async ({ adminRequest }) => {
+    const response = await adminRequest.get('orders/number/999999999');
+    expect(response.status()).toBe(404);
+  });
+
   test('should get a single order by ID when it exists', async ({ adminRequest }) => {
     // Get list first, then fetch one by ID
     const listResponse = await adminRequest.get('orders');

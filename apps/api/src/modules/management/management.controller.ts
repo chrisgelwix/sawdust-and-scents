@@ -11,6 +11,7 @@ import { InventoryService } from '../products/inventory.service';
 import { ManagementService } from './management.service';
 import { OrdersService } from '../orders/orders.service';
 import { ProductsService } from '../products/products.service';
+import { OrderStatus } from '@sdas/shared-types';
 
 @ApiTags('management')
 @ApiBearerAuth()
@@ -183,7 +184,7 @@ export class ManagementController {
     const orders = ordersResult.orders;
 
     const revenue = orders
-      .filter((order) => order.status === 'delivered')
+      .filter((order) => order.status === OrderStatus.DELIVERED)
       .reduce((sum, order) => sum + Number(order.totalAmount), 0);
 
     const avgOrderValue =

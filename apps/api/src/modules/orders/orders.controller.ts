@@ -17,9 +17,11 @@ import {
 } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { ShippingService } from './shipping.service';
+import { UsersService } from '../users/users.service';
 import { Roles } from 'nest-keycloak-connect';
 import { Public } from '../auth/decorators/public.decorator';
 import { AuthenticatedUser } from '../auth/decorators/user.decorator';
+import { OrderStatus } from '@sdas/shared-types';
 
 @ApiTags('orders')
 @ApiBearerAuth()
@@ -27,8 +29,15 @@ import { AuthenticatedUser } from '../auth/decorators/user.decorator';
 export class OrdersController {
   constructor(
     private readonly ordersService: OrdersService,
-    private readonly shippingService: ShippingService
+    private readonly shippingService: ShippingService,
+    private readonly usersService: UsersService,
   ) {}
+
+  /** Resolve Keycloak sub → database user ID */
+  private async resolveUserId(keycloakSub: string): Promise<string> {
+    const user = await this.usersService.findOrCreateByKeycloakId(keycloakSub);
+    return user.id;
+  }
 
   // ─── User Endpoints ───
 
@@ -36,7 +45,8 @@ export class OrdersController {
   @ApiOperation({ summary: 'Get my orders' })
   @ApiResponse({ status: 200, description: 'List of orders for the current user' })
   async getMyOrders(@AuthenticatedUser() user: any) {
-    return this.ordersService.findByUser(user.sub);
+    const userId = await this.resolveUserId(user.sub);
+    return this.ordersService.findByUser(userId);
   }
 
   // ─── Admin/Worker Endpoints ───
@@ -139,7 +149,7 @@ export class OrdersController {
       trackingNumber: transaction.tracking_number,
       shippingLabelUrl: transaction.label_url,
       shippingCarrier: body.carrier,
-      status: 'shipped',
+      status: OrderStatus.SHIPPED,
     });
 
     return transaction;

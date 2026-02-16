@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { OrderItem } from './order-item.entity';
+import { OrderStatus } from '@sdas/shared-types';
 
 @Entity('orders')
 export class Order {
@@ -31,7 +32,7 @@ export class Order {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   totalAmount!: number;
 
-  @Column({ default: 'pending' })
+  @Column({ default: OrderStatus.PENDING })
   status!: string;
 
   @Column({ nullable: true })

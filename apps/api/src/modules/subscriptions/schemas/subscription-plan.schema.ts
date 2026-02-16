@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import { BillingInterval } from '@sdas/shared-types';
 
 @Schema({ timestamps: true })
 export class SubscriptionPlan extends Document {
@@ -17,8 +18,8 @@ export class SubscriptionPlan extends Document {
 
   @Prop({
     required: true,
-    enum: ['monthly', 'quarterly', 'semi_annually', 'annually'],
-    default: 'monthly',
+    enum: Object.values(BillingInterval),
+    default: BillingInterval.MONTHLY,
   })
   billingInterval!: string;
 

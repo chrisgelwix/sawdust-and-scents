@@ -12,6 +12,7 @@ import { PaymentsModule } from '../modules/payments/payments.module';
 import { DatabaseModule } from '../modules/database/database.module';
 import { ManagementModule } from '../modules/management/management.module';
 import { CommonModule } from '../modules/common/common.module';
+import { RewardsModule } from '../modules/rewards/rewards.module';
 import { SubscriptionsModule } from '../modules/subscriptions/subscriptions.module';
 
 @Module({
@@ -30,6 +31,7 @@ import { SubscriptionsModule } from '../modules/subscriptions/subscriptions.modu
     PaymentsModule,
     DatabaseModule,
     ManagementModule,
+    RewardsModule,
     SubscriptionsModule,
   ],
   controllers: [AppController],

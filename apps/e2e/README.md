@@ -416,9 +416,7 @@ See root `package.json` for complete list.
 - [ ] Generate automated compliance reports
 - [ ] Add accessibility testing with axe-core
 - [ ] Implement API versioning tests
-- [ ] Add security scanning integration
-
-## Related Documentation- [API README](../api/README.md)
+- [ ] Add security scanning integration## Related Documentation- [API README](../api/README.md)
 - [Web README](../web/README.md)
 - [Development Steps](../../docs/Development%20Steps/)
 - [GitHub Actions README](../../.github/README.md)## ContributingWhen adding new tests:1. Choose the appropriate test type (API, integration, Playwright, NIST)

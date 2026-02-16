@@ -7,6 +7,7 @@ import {
 } from '@nestjs/swagger';
 import { SubscriptionsService } from './subscriptions.service';
 import { SubscriptionPlansService } from './subscription-plans.service';
+import { UsersService } from '../users/users.service';
 import { AuthenticatedUser } from '../auth/decorators/user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from 'nest-keycloak-connect';
@@ -16,8 +17,15 @@ import { Roles } from 'nest-keycloak-connect';
 export class SubscriptionsController {
   constructor(
     private subscriptionsService: SubscriptionsService,
-    private plansService: SubscriptionPlansService
+    private plansService: SubscriptionPlansService,
+    private usersService: UsersService,
   ) {}
+
+  /** Resolve Keycloak sub → database user ID */
+  private async resolveUserId(keycloakSub: string): Promise<string> {
+    const user = await this.usersService.findOrCreateByKeycloakId(keycloakSub);
+    return user.id;
+  }
 
   @Public()
   @Get('plans')
@@ -42,8 +50,9 @@ export class SubscriptionsController {
     @AuthenticatedUser() user: any,
     @Body() body: { planId: string; scentPreferences?: string[] }
   ) {
+    const userId = await this.resolveUserId(user.sub);
     return this.subscriptionsService.subscribe(
-      user.sub,
+      userId,
       body.planId,
       body.scentPreferences
     );
@@ -53,35 +62,40 @@ export class SubscriptionsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get my subscriptions' })
   async getMySubscriptions(@AuthenticatedUser() user: any) {
-    return this.subscriptionsService.findByUser(user.sub);
+    const userId = await this.resolveUserId(user.sub);
+    return this.subscriptionsService.findByUser(userId);
   }
 
   @Get('me/active')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get my active subscription' })
   async getMyActiveSubscription(@AuthenticatedUser() user: any) {
-    return this.subscriptionsService.findActiveByUser(user.sub);
+    const userId = await this.resolveUserId(user.sub);
+    return this.subscriptionsService.findActiveByUser(userId);
   }
 
   @Put(':id/pause')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Pause my subscription' })
   async pause(@Param('id') id: string, @AuthenticatedUser() user: any) {
-    return this.subscriptionsService.pause(id, user.sub);
+    const userId = await this.resolveUserId(user.sub);
+    return this.subscriptionsService.pause(id, userId);
   }
 
   @Put(':id/resume')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Resume my paused subscription' })
   async resume(@Param('id') id: string, @AuthenticatedUser() user: any) {
-    return this.subscriptionsService.resume(id, user.sub);
+    const userId = await this.resolveUserId(user.sub);
+    return this.subscriptionsService.resume(id, userId);
   }
 
   @Put(':id/cancel')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cancel my subscription' })
   async cancel(@Param('id') id: string, @AuthenticatedUser() user: any) {
-    return this.subscriptionsService.cancel(id, user.sub);
+    const userId = await this.resolveUserId(user.sub);
+    return this.subscriptionsService.cancel(id, userId);
   }
 
   @Put(':id/preferences')
@@ -92,9 +106,10 @@ export class SubscriptionsController {
     @AuthenticatedUser() user: any,
     @Body() body: { scentPreferences: string[] }
   ) {
+    const userId = await this.resolveUserId(user.sub);
     return this.subscriptionsService.updatePreferences(
       id,
-      user.sub,
+      userId,
       body.scentPreferences
     );
   }

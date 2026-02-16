@@ -15,6 +15,7 @@ import {
 } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { SubscriptionStatus } from '@sdas/shared-types';
 
 // In-memory store for mock payment intents
 const paymentStore: Record<string, any> = {};
@@ -94,7 +95,7 @@ export class PaymentsController {
         // Trial ended → first charge succeeded → activate subscription
         const subscription = event.data.object;
         const previousStatus = event.data.previous_attributes?.status;
-        if (previousStatus === 'trialing' && subscription.status === 'active') {
+        if (previousStatus === SubscriptionStatus.TRIALING && subscription.status === SubscriptionStatus.ACTIVE) {
           await this.subscriptionsService.activateAfterTrial(subscription.id);
         }
         break;

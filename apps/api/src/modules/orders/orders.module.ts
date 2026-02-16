@@ -6,8 +6,12 @@ import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
 import { ShippingService } from './shipping.service';
 import { User } from '../users/entities/user.entity';
+import { Subscription } from '../subscriptions/entities/subscription.entity';
+import { RewardsModule } from '../rewards/rewards.module';
+import { UsersModule } from '../users/users.module';
+
 @Module({
-  imports: [TypeOrmModule.forFeature([Order, OrderItem, User])],
+  imports: [TypeOrmModule.forFeature([Order, OrderItem, User, Subscription]), RewardsModule, UsersModule],
   controllers: [OrdersController],
   providers: [OrdersService, ShippingService],
   exports: [OrdersService, ShippingService, TypeOrmModule],
