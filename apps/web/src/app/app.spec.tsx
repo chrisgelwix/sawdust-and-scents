@@ -3,6 +3,12 @@ import { BrowserRouter } from 'react-router-dom';
 
 import App from './app';
 
+// Mock auth-context to avoid loading keycloak-js in unit tests
+jest.mock('./context/auth-context', () => ({
+  useAuth: () => ({ authenticated: false, user: null, login: jest.fn(), logout: jest.fn() }),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 describe('App', () => {
   it('should render successfully', () => {
     const { baseElement } = render(
@@ -13,15 +19,12 @@ describe('App', () => {
     expect(baseElement).toBeTruthy();
   });
 
-  it('should have a greeting as the title', () => {
-    const { getAllByText } = render(
+  it('should display the app title', () => {
+    const { getByText } = render(
       <BrowserRouter>
         <App />
       </BrowserRouter>
     );
-    expect(
-      getAllByText(new RegExp('Welcome web', 'gi')).length >
-        0
-    ).toBeTruthy();
+    expect(getByText('Sawdust & Scents')).toBeTruthy();
   });
 });

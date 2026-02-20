@@ -67,3 +67,7 @@ TestResults.xml
 .nx/cache
 .nx/workspace-data
 vite.config.*.timestamp*
+
+# Documentation
+docs/BusinessPlans/
+docs/DevelopmentSteps/
