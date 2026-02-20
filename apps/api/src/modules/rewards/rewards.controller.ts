@@ -13,6 +13,7 @@ import {
     ApiResponse,
     ApiQuery,
 } from '@nestjs/swagger';
+import { BaseController } from '../common/controllers/base.controller';
 import { RewardsService } from './rewards.service';
 import { UsersService } from '../users/users.service';
 import { AuthenticatedUser } from '../auth/decorators/user.decorator';
@@ -21,16 +22,12 @@ import { Roles } from 'nest-keycloak-connect';
 @ApiTags('rewards')
 @ApiBearerAuth()
 @Controller('rewards')
-export class RewardsController {
+export class RewardsController extends BaseController {
     constructor(
         private rewardsService: RewardsService,
-        private usersService: UsersService,
-    ) {}
-
-    /** Resolve Keycloak sub → database user ID */
-    private async resolveUserId(keycloakSub: string): Promise<string> {
-        const user = await this.usersService.findOrCreateByKeycloakId(keycloakSub);
-        return user.id;
+        usersService: UsersService,
+    ) {
+        super(usersService);
     }
 
     // ─── User: My Rewards ───

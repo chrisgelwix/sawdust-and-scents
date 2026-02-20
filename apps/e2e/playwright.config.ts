@@ -55,7 +55,7 @@ export default defineConfig({
   projects: [
     {
       name: 'api',
-      testDir: './src/tests/API',
+      testDir: './tests/API',
       use: {
         baseURL: (process.env.API_URL || 'http://localhost:3000') + '/api/',
       },

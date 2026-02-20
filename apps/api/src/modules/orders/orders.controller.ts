@@ -15,6 +15,7 @@ import {
   ApiResponse,
   ApiQuery,
 } from '@nestjs/swagger';
+import { BaseController } from '../common/controllers/base.controller';
 import { OrdersService } from './orders.service';
 import { ShippingService } from './shipping.service';
 import { UsersService } from '../users/users.service';
@@ -26,17 +27,13 @@ import { OrderStatus } from '@sdas/shared-types';
 @ApiTags('orders')
 @ApiBearerAuth()
 @Controller('orders')
-export class OrdersController {
+export class OrdersController extends BaseController {
   constructor(
     private readonly ordersService: OrdersService,
     private readonly shippingService: ShippingService,
-    private readonly usersService: UsersService,
-  ) {}
-
-  /** Resolve Keycloak sub → database user ID */
-  private async resolveUserId(keycloakSub: string): Promise<string> {
-    const user = await this.usersService.findOrCreateByKeycloakId(keycloakSub);
-    return user.id;
+    usersService: UsersService,
+  ) {
+    super(usersService);
   }
 
   // ─── User Endpoints ───

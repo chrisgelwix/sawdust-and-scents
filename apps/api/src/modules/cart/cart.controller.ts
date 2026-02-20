@@ -8,6 +8,7 @@ import {
   Param,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import { BaseController } from '../common/controllers/base.controller';
 import { CartService } from './cart.service';
 import { CheckoutService } from './checkout.service';
 import { UsersService } from '../users/users.service';
@@ -17,17 +18,13 @@ import { CartItem } from '@sdas/shared-types';
 @ApiTags('cart')
 @ApiBearerAuth()
 @Controller('cart')
-export class CartController {
+export class CartController extends BaseController {
   constructor(
     private readonly cartService: CartService,
     private readonly checkoutService: CheckoutService,
-    private readonly usersService: UsersService,
-  ) {}
-
-  /** Resolve Keycloak sub → database user ID */
-  private async resolveUserId(keycloakSub: string): Promise<string> {
-    const user = await this.usersService.findOrCreateByKeycloakId(keycloakSub);
-    return user.id;
+    usersService: UsersService,
+  ) {
+    super(usersService);
   }
 
   @Get()

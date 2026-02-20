@@ -5,6 +5,7 @@ import {
   ApiBearerAuth,
   ApiResponse,
 } from '@nestjs/swagger';
+import { BaseController } from '../common/controllers/base.controller';
 import { SubscriptionsService } from './subscriptions.service';
 import { SubscriptionPlansService } from './subscription-plans.service';
 import { UsersService } from '../users/users.service';
@@ -14,17 +15,13 @@ import { Roles } from 'nest-keycloak-connect';
 
 @ApiTags('subscriptions')
 @Controller('subscriptions')
-export class SubscriptionsController {
+export class SubscriptionsController extends BaseController {
   constructor(
     private subscriptionsService: SubscriptionsService,
     private plansService: SubscriptionPlansService,
-    private usersService: UsersService,
-  ) {}
-
-  /** Resolve Keycloak sub → database user ID */
-  private async resolveUserId(keycloakSub: string): Promise<string> {
-    const user = await this.usersService.findOrCreateByKeycloakId(keycloakSub);
-    return user.id;
+    usersService: UsersService,
+  ) {
+    super(usersService);
   }
 
   @Public()
