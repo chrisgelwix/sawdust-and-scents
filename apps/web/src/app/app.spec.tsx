@@ -5,7 +5,16 @@ import App from './app';
 
 // Mock auth-context to avoid loading keycloak-js in unit tests
 jest.mock('./context/auth-context', () => ({
-  useAuth: () => ({ authenticated: false, user: null, login: jest.fn(), logout: jest.fn() }),
+  useAuth: () => ({ 
+    authenticated: false, 
+    user: null, 
+    login: jest.fn(), 
+    logout: jest.fn(),
+    loginWithCredentials: jest.fn(),
+    loginModalOpen: false,
+    openLoginModal: jest.fn(),
+    closeLoginModal: jest.fn(), 
+  }),
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -25,6 +34,6 @@ describe('App', () => {
         <App />
       </BrowserRouter>
     );
-    expect(getByText('Sawdust & Scents')).toBeTruthy();
+    expect(getByText('SAWDUST & SCENTS')).toBeTruthy();
   });
 });

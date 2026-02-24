@@ -403,11 +403,7 @@ start coverage\e2e\index.html  # Windows
 - `@playwright/test` - Browser automation (to be added)
 
 ### Development Dependencies
-See root `package.json` for complete list.
-
-## Future Enhancements
-
-- [ ] Add Playwright configuration and initial tests
+See root `package.json` for complete list.## Future Enhancements- [ ] Add Playwright configuration and initial tests
 - [ ] Implement visual regression testing
 - [ ] Add performance benchmarking
 - [ ] Create contract tests with Pact
