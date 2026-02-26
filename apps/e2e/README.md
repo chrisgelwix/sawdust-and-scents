@@ -400,9 +400,7 @@ start coverage\e2e\index.html  # Windows
 - `ts-jest` - TypeScript support for Jest
 - `@nestjs/testing` - NestJS testing utilities
 - `supertest` - HTTP assertions
-- `@playwright/test` - Browser automation (to be added)
-
-### Development Dependencies
+- `@playwright/test` - Browser automation (to be added)### Development Dependencies
 See root `package.json` for complete list.## Future Enhancements- [ ] Add Playwright configuration and initial tests
 - [ ] Implement visual regression testing
 - [ ] Add performance benchmarking

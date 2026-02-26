@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => {
       'process.env.KEYCLOAK_REALM': JSON.stringify(env.KEYCLOAK_REALM),
       // Prefer the web-specific client ID, fallback to the generic one, then default to 'sdas-web'
       'process.env.KEYCLOAK_CLIENT_ID': JSON.stringify(env.KEYCLOAK_WEB_CLIENT_ID || env.KEYCLOAK_CLIENT_ID || 'sdas-web'),
+      'process.env.API_BASE_URL': JSON.stringify(env.API_BASE_URL || 'http://localhost:3000'),
     },
     server: {
       port: 4200,

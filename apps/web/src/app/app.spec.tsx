@@ -11,6 +11,7 @@ jest.mock('./context/auth-context', () => ({
     login: jest.fn(), 
     logout: jest.fn(),
     loginWithCredentials: jest.fn(),
+    loginWithProvider: jest.fn(),
     loginModalOpen: false,
     openLoginModal: jest.fn(),
     closeLoginModal: jest.fn(), 

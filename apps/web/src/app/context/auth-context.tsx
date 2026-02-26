@@ -2,10 +2,11 @@ import { createContext, useEffect, useState, useContext, useRef } from 'react';
 import Keycloak, { KeycloakTokenParsed } from 'keycloak-js';
 
 const keycloak = new Keycloak({
-    url: process.env.KEYCLOAK_URL || 'http://localhost:8080',
-    realm: process.env.KEYCLOAK_REALM || 'sdas-realm',
-    clientId: process.env.KEYCLOAK_CLIENT_ID || 'sdas-web',
+    url: process.env.KEYCLOAK_URL as string,
+    realm: process.env.KEYCLOAK_REALM as string,
+    clientId: process.env.KEYCLOAK_CLIENT_ID as string,
 });
+export type SocialProvider = 'google' | 'github';
 
 interface AuthContextType {
     authenticated: boolean;
@@ -13,6 +14,7 @@ interface AuthContextType {
     login: () => void;
     logout: () => void;
     loginWithCredentials: (username: string, password: string) => Promise<void>;
+    loginWithProvider: (provider: SocialProvider) => void;
     loginModalOpen: boolean;
     openLoginModal: ()=> void;
     closeLoginModal: ()=> void;
@@ -28,6 +30,7 @@ const AuthContext = createContext<AuthContextType>({
     loginWithCredentials: async (username: string, password: string): Promise<void> => {
         throw new Error('Not implemented');
     },
+    loginWithProvider: () => { throw new Error('Not implemented'); },
     loginModalOpen: false,
     openLoginModal: () => {},
     closeLoginModal: () => {},
@@ -54,6 +57,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const closeLoginModal = () => {
         setLoginModalOpen(false);
+    }
+
+    const loginWithProvider = (provider: SocialProvider) => {
+        keycloak.login({ idpHint: provider })
+        .catch(error => console.error(`Social login failed (${provider})`, error))
     }
 
     const loginWithCredentials = async (username: string, password: string): Promise<void> =>  {
@@ -117,6 +125,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 login, 
                 logout, 
                 loginWithCredentials, 
+                loginWithProvider,
                 loginModalOpen, 
                 openLoginModal, 
                 closeLoginModal }}>

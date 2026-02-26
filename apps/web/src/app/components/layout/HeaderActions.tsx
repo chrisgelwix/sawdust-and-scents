@@ -10,8 +10,13 @@ import {
 import  ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/auth-context';
+import { KeycloakTokenParsed } from 'keycloak-js';
 import { LoginModal } from '../auth/LoginModal';
 import { useState, useRef } from 'react';
+import { RegisterModal } from '../auth/RegisterModal';
+
+// Extend the standard token type to include our custom Keycloak attribute
+type AppToken = KeycloakTokenParsed & { friendlyName?: string };
 
 const navButtonSx = {
   color: 'text.primary',
@@ -25,8 +30,13 @@ interface HeaderActionsProps {
 
 export const HeaderActions = ({ cartItemCount = 0 }: HeaderActionsProps) => {
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { authenticated, user, login, logout, loginModalOpen, openLoginModal, closeLoginModal, loginWithCredentials } = useAuth();
+  const { authenticated, user, login, logout, loginModalOpen, openLoginModal, closeLoginModal, loginWithCredentials, loginWithProvider, } = useAuth();
+  // Prefer the user's chosen display name; fall back to first name, then 'Guest'
+  const displayName = (user as AppToken)?.friendlyName ?? user?.given_name ?? 'Guest';
+
   const [ anchorEl, setAnchorEl ] = useState<HTMLElement | null>(null)
+  const [ registerModalOpen, setRegisterModalOpen ] = useState(false);
+  const [ postReg, setPostReg ] = useState<{ title: string; username: string } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const handleMouseEnterButton = (e: React.MouseEvent<HTMLButtonElement>) => {
     if(closeTimer.current) clearTimeout(closeTimer.current);
@@ -43,6 +53,19 @@ export const HeaderActions = ({ cartItemCount = 0 }: HeaderActionsProps) => {
   }
   const handleMenuClose = () => {
     if(anchorEl) setAnchorEl(null);
+  }
+  const handleOpenRegister=() => {
+    closeLoginModal();
+    setRegisterModalOpen(true);
+  }
+  const handleRegisterSuccess = (username: string) => {
+    setPostReg({ title: 'Sign in with your new account', username });
+    setRegisterModalOpen(false);
+    openLoginModal();
+  }
+  const handleLoginModalClose = () => {
+    setPostReg(null);
+    closeLoginModal();
   }
 
     return (
@@ -85,7 +108,7 @@ export const HeaderActions = ({ cartItemCount = 0 }: HeaderActionsProps) => {
                   >
                     <Button ref={buttonRef}
                       sx={navButtonSx}>
-                        {user?.given_name ?? 'Sign In'}
+                        { displayName }
                       </Button>
                       <Menu 
                         anchorEl = { anchorEl }
@@ -94,7 +117,7 @@ export const HeaderActions = ({ cartItemCount = 0 }: HeaderActionsProps) => {
                         >
                         
                           <MenuItem disabled>
-                            Welcome, {user?.given_name ?? 'Guest' }
+                            Welcome, { displayName }
                           </MenuItem>
 
                           <Divider /> 
@@ -139,12 +162,22 @@ export const HeaderActions = ({ cartItemCount = 0 }: HeaderActionsProps) => {
           </Box>
 
           <LoginModal 
-            open= { loginModalOpen }
-            onClose = { closeLoginModal }
-            onLogin = { loginWithCredentials}
-          >
-
+            open={ loginModalOpen }
+            onClose={ handleLoginModalClose }
+            onLogin={ loginWithCredentials }
+            onLoginWithProvider={ loginWithProvider }
+            onRegister={ handleOpenRegister }
+            title={ postReg?.title }
+            defaultUsername={ postReg?.username }>
           </LoginModal>
+          <RegisterModal 
+            open={ registerModalOpen }
+            onClose={() => setRegisterModalOpen(false)}
+            onSuccess={handleRegisterSuccess}
+            onLoginWithProvider={loginWithProvider}>
+          </RegisterModal>
           </>
         );
 };
+
+export default HeaderActions;

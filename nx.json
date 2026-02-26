@@ -2,27 +2,18 @@
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "plugins": [
     {
-      "plugin": "@nx/webpack/plugin",
-      "options": {
-        "buildTargetName": "build",
-        "serveTargetName": "serve",
-        "previewTargetName": "preview",
-        "buildDepsTargetName": "build-deps",
-        "watchDepsTargetName": "watch-deps",
-        "serveStaticTargetName": "serve-static"
-      }
-    },
-    {
       "plugin": "@nx/eslint/plugin",
       "options": {
         "targetName": "lint"
-      }
+      },
+      "include": ["apps/web/**/*", "apps/api/**/*", "libs/**/*"]
     },
     {
       "plugin": "@nx/jest/plugin",
       "options": {
         "targetName": "test"
       },
+      "include": ["apps/web/**/*", "apps/api/**/*", "libs/**/*"],
       "exclude": ["apps/e2e/**/*"]
     },
     {
@@ -37,7 +28,8 @@
         "typecheckTargetName": "typecheck",
         "buildDepsTargetName": "build-deps",
         "watchDepsTargetName": "watch-deps"
-      }
+      },
+      "include": ["apps/web/**/*", "libs/**/*"]
     }
   ],
   "generators": {
