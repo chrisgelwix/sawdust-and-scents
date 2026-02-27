@@ -7,4 +7,6 @@ module.exports = {
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   coverageDirectory: '../../coverage/web',
+  clearMocks: true,
+  setupFilesAfterEnv: ['@testing-library/jest-dom'],
 };

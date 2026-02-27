@@ -1,6 +1,6 @@
 import { Box, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
-import { theme } from '../../theme/theme';
+import { theme } from '../../../theme/theme';
 
 export const Logo = () => {
     return (

@@ -9,11 +9,11 @@ import {
     Tooltip } from '@mui/material';
 import  ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/auth-context';
+import { useAuth } from '../../../context/auth-context';
 import { KeycloakTokenParsed } from 'keycloak-js';
-import { LoginModal } from '../auth/LoginModal';
+import { LoginModal } from '../../auth/LoginModal';
 import { useState, useRef } from 'react';
-import { RegisterModal } from '../auth/RegisterModal';
+import { RegisterModal } from '../../auth/RegisterModal';
 
 // Extend the standard token type to include our custom Keycloak attribute
 type AppToken = KeycloakTokenParsed & { friendlyName?: string };
