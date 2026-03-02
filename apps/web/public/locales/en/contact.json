@@ -1,0 +1,33 @@
+{
+  "title": "Send Us a Message",
+  "subtitle": "We'd love to hear from you. Fill out the form below and we'll get back to you within 1–2 business days.",
+  "fields": {
+    "name":        "Your Name",
+    "email":       "Email Address",
+    "orderNumber": "Order Number (optional)",
+    "subject":     "Subject",
+    "message":     "Message",
+    "send":        "Send Message",
+    "sending":     "Sending…"
+  },
+  "subjects": [
+    "General Question",
+    "Order Issue",
+    "Returns & Exchanges",
+    "Custom Order Request",
+    "Other"
+  ],
+  "validation": {
+    "nameRequired":    "Name is required",
+    "emailRequired":   "Email is required",
+    "emailInvalid":    "Please enter a valid email",
+    "subjectRequired": "Please select a subject",
+    "messageRequired": "Message is required",
+    "messageTooShort": "Message must be at least 20 characters"
+  },
+  "success": {
+    "title": "Message sent!",
+    "body":  "Thanks for reaching out. We'll reply to {{email}} within 1–2 business days."
+  },
+  "error": "Something went wrong. Please try again or email us directly at help@sawdustandscents.com."
+}

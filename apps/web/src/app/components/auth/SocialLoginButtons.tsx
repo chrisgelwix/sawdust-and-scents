@@ -1,10 +1,6 @@
 import React from 'react';
-import { 
-    Box,
-    Button,
-    Divider,
-    Typography,
-} from '@mui/material';
+import { Box, Button, Divider, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { SocialProvider } from '../../context/auth-context';
 import { theme } from '../../theme/theme';
 
@@ -25,15 +21,15 @@ const GitHubIcon = () => (
 
 type SocialProviderConfig = {
     id: SocialProvider;
-    label: string;
+    labelKey: 'social.google' | 'social.github';
     color: string;
     textColor: string;
     icon: React.ReactNode;
-}
+};
 
 const SOCIAL_PROVIDERS: SocialProviderConfig[] = [
-    { id: 'google', label: 'Continue with Google', color: '#fff', textColor: '#3c4043', icon: <GoogleIcon /> },
-    { id: 'github', label: 'Continue with GitHub', color: '#24292e', textColor: '#fff', icon: <GitHubIcon /> },
+    { id: 'google', labelKey: 'social.google', color: '#fff',     textColor: '#3c4043', icon: <GoogleIcon /> },
+    { id: 'github', labelKey: 'social.github', color: '#24292e',  textColor: '#fff',    icon: <GitHubIcon /> },
 ];
 
 interface SocialLoginButtonsProps {
@@ -41,57 +37,42 @@ interface SocialLoginButtonsProps {
 }
 
 export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({ onLoginWithProvider }) => {
+    const { t } = useTranslation('auth');
+
     return (
         <>
-            <Box 
-              sx={{
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: 1.5, 
-                mb: 2 }}>
-                    {SOCIAL_PROVIDERS.map((provider) => (
-                        <Button
-                            key={provider.id}
-                            variant="outlined"
-                            fullWidth
-                            onClick={() => onLoginWithProvider(provider.id)}
-                            startIcon={provider.icon}
-                            sx={{
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
+                {SOCIAL_PROVIDERS.map((provider) => (
+                    <Button
+                        key={provider.id}
+                        variant="outlined"
+                        fullWidth
+                        onClick={() => onLoginWithProvider(provider.id)}
+                        startIcon={provider.icon}
+                        sx={{
+                            bgcolor: provider.color,
+                            color: provider.textColor,
+                            borderColor: '#dadce0',
+                            textTransform: 'none',
+                            fontWeight: theme.typography.fontWeightMedium,
+                            '&:hover': {
                                 bgcolor: provider.color,
-                                color: provider.textColor,
-                                borderColor: '#dadce0',
-                                textTransform: 'none',
-                                fontWeight: theme.typography.fontWeightMedium,
-                                '&:hover': {
-                                    bgcolor: provider.color,
-                                    filter: 'brightness(0.95)',
-                                    borderColor: '#aaa',
-                                },
-                            }}>
-                                { provider.label }
-                            </Button>
-                        ))}
-                    </Box>
+                                filter: 'brightness(0.95)',
+                                borderColor: '#aaa',
+                            },
+                        }}>
+                        {t(provider.labelKey)}
+                    </Button>
+                ))}
+            </Box>
 
-                    <Box 
-                      sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        my: 2, 
-                        gap: 1 }}>
-                          <Divider 
-                            sx={{ 
-                              flex: 1 }} />
-                                <Typography 
-                                variant="body2" 
-                                color="text.secondary">
-                                    or
-                                </Typography>
-                        <Divider 
-                          sx={{
-                             flex: 1 }} />
-                    </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', my: 2, gap: 1 }}>
+                <Divider sx={{ flex: 1 }} />
+                <Typography variant="body2" color="text.secondary">
+                    {t('social.or')}
+                </Typography>
+                <Divider sx={{ flex: 1 }} />
+            </Box>
         </>
     );
 };
-

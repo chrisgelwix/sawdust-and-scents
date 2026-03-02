@@ -1,0 +1,25 @@
+{
+  "title":    "Accessibility",
+  "subtitle": "Our commitment to making Sawdust & Scents usable by everyone.",
+  "commitmentTitle": "Our commitment",
+  "commitmentBody":  "Sawdust & Scents is committed to ensuring our website is accessible to people with disabilities. We aim to conform to the <wcagLink>Web Content Accessibility Guidelines (WCAG) 2.1</wcagLink> at Level AA. Accessibility is an ongoing effort, and we are continuously improving the user experience for everyone.",
+  "measuresTitle":   "Measures we have taken",
+  "knownTitle":      "Known issues",
+  "knownIntro":      "We are aware of the following limitations and are actively working to resolve them:",
+  "feedbackTitle":   "Feedback and contact",
+  "feedbackBody":    "If you encounter an accessibility barrier on our site, or if you need content in an alternative format, please <contactLink>contact us</contactLink>. We aim to respond to accessibility feedback within 2 business days.",
+  "lastReviewed":    "This statement was last reviewed on",
+  "measures": [
+    "Semantic HTML elements used throughout (nav, main, header, footer, h1–h6).",
+    "All interactive elements are keyboard-navigable and have visible focus indicators.",
+    "Images include descriptive alt text.",
+    "Colour contrast ratios meet or exceed WCAG 2.1 AA (4.5:1 for body text, 3:1 for large text).",
+    "Form fields are labelled with associated label elements.",
+    "Modal dialogs trap focus correctly and can be dismissed with the Escape key.",
+    "The site is tested with keyboard-only navigation before each release."
+  ],
+  "knownIssues": [
+    "Some product images uploaded by customers may not yet have alt text. We are working on a review process to address this.",
+    "The interactive product customiser is not fully accessible to screen reader users. A text-based alternative is on our roadmap."
+  ]
+}

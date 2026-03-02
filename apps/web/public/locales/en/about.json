@@ -1,0 +1,29 @@
+{
+  "title":       "About Us",
+  "subtitle":    "Handcrafted wood signs and soy candles made with care, one order at a time.",
+  "storyTitle":  "How it started",
+  "storyP1":     "Sawdust & Scents started in a garage with a second-hand scroll saw and a bag of candle wax. What began as weekend projects for friends and family quickly outgrew the garage — and then the spare bedroom, and then the basement. Today we operate out of a dedicated studio, but the approach has never changed: every order is treated like a gift for someone we know.",
+  "storyP2":     "We specialise in personalised wood signs — home décor, wedding gifts, nursery art — and hand-poured soy candles in scents inspired by the seasons. Everything is made to order, which means no sitting in a warehouse and no generic, off-the-shelf feel.",
+  "valuesTitle": "What we stand for",
+  "ctaText":     "Have a question, a custom order request, or just want to say hello?",
+  "ctaLink":     "Send us a message",
+  "ctaEnd":      "— we read and reply to every one.",
+  "values": [
+    {
+      "heading": "🌲  Handcrafted with purpose",
+      "body":    "Every sign is cut, sanded, and finished by hand in our small studio. No mass production — each piece is made to order so it arrives exactly as intended."
+    },
+    {
+      "heading": "🕯️  Scents that tell a story",
+      "body":    "Our candles are poured in small batches using soy wax and premium fragrance oils. We test every blend to make sure the scent throw, burn time, and label quality meet our standards."
+    },
+    {
+      "heading": "👨‍👩‍👧  Family-friendly by design",
+      "body":    "We built this shop to be a place the whole family can enjoy — whether you're shopping for your own home, buying a gift, or customising something special for a loved one."
+    },
+    {
+      "heading": "♻️  Sustainability matters",
+      "body":    "We source locally whenever possible, use recyclable packaging, and donate offcuts to local schools and makerspaces. Small choices add up."
+    }
+  ]
+}

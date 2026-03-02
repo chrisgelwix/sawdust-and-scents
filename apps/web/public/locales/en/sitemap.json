@@ -1,0 +1,48 @@
+{
+  "title":    "Sitemap",
+  "subtitle": "A full index of every page on the site.",
+  "sections": [
+    {
+      "heading": "Shop",
+      "links": [
+        { "label": "All Products",  "description": "Browse the full catalogue" },
+        { "label": "Wood Signs",    "description": "Personalised and ready-made signs" },
+        { "label": "Candles",       "description": "Hand-poured soy candles" },
+        { "label": "Gift Sets",     "description": "Curated bundles for every occasion" },
+        { "label": "Custom Orders", "description": "Make it yours" },
+        { "label": "Home Decor",    "description": "Accent pieces for every room" },
+        { "label": "New Arrivals",  "description": "Latest additions to the shop" },
+        { "label": "Sale",          "description": "Current markdowns" }
+      ]
+    },
+    {
+      "heading": "Account",
+      "links": [
+        { "label": "Sign In",       "description": "Access your account" },
+        { "label": "Shopping Cart", "description": "View your current cart" },
+        { "label": "Rewards",       "description": "Check your points and rewards" }
+      ]
+    },
+    {
+      "heading": "Company",
+      "links": [
+        { "label": "About Us",     "description": "Our story and values" },
+        { "label": "Contact Us",   "description": "Send us a message" },
+        { "label": "Accessibility","description": "Our accessibility commitment" }
+      ]
+    },
+    {
+      "heading": "Customer Support",
+      "links": [
+        { "label": "Help & Support","description": "FAQs and common questions" }
+      ]
+    },
+    {
+      "heading": "Legal",
+      "links": [
+        { "label": "Terms of Sale",  "description": "Purchase terms and conditions" },
+        { "label": "Privacy Policy", "description": "How we handle your data" }
+      ]
+    }
+  ]
+}

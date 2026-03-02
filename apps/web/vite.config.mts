@@ -23,6 +23,12 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 4200,
       host: 'localhost',
+      proxy: {
+        '/api': {
+          target: env.API_BASE_URL || 'http://localhost:3000',
+          changeOrigin: true,
+        },
+      },
     },
     preview: {
       port: 4200,

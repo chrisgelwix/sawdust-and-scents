@@ -1,0 +1,81 @@
+{
+  "title":     "Help & Support",
+  "subtitle":  "Answers to the most common questions. Can't find what you need? We're happy to help.",
+  "stillTitle":"Still have questions?",
+  "stillBody": "Our team typically responds within one business day.",
+  "stillCta":  "Send us a message →",
+  "categories": [
+    {
+      "name": "Orders & Customisation",
+      "items": [
+        {
+          "q": "How do I place a custom order?",
+          "a": "Browse to the product you want, select your size and finish, then type your personalisation text in the custom field before adding to cart. Need something more unique? <contactLink>Send us a message</contactLink> and we'll work with you directly."
+        },
+        {
+          "q": "Can I change or cancel my order after placing it?",
+          "a": "We begin production quickly, so please <contactLink>contact us</contactLink> as soon as possible if you need to make a change. We can usually accommodate modifications within 24 hours of the order being placed. Once an item is in production we are unable to make changes."
+        },
+        {
+          "q": "How long does production take?",
+          "a": "Standard items ship within 1–3 business days. Custom or personalised orders typically take 3–5 business days before shipping. Specific lead times are shown on each product page."
+        }
+      ]
+    },
+    {
+      "name": "Shipping & Delivery",
+      "items": [
+        {
+          "q": "Where do you ship?",
+          "a": "We ship across the United States and offer international shipping to most countries. International rates and delivery estimates are calculated at checkout."
+        },
+        {
+          "q": "How can I track my order?",
+          "a": "Once your order ships you will receive a confirmation email with a tracking number. You can also view order status in your account under \"My Orders\"."
+        },
+        {
+          "q": "Do you offer free shipping?",
+          "a": "Yes! All US orders over $75 qualify for free standard shipping. The discount is applied automatically at checkout."
+        },
+        {
+          "q": "My package was marked delivered but I haven't received it.",
+          "a": "First check with neighbours and any secure locations around your property. Carrier GPS can sometimes be off by a few houses. If the package still cannot be located after 3 business days, <contactLink>contact us</contactLink> and we will open a carrier investigation."
+        }
+      ]
+    },
+    {
+      "name": "Returns & Refunds",
+      "items": [
+        {
+          "q": "What is your return policy?",
+          "a": "We accept returns on non-personalised items within 30 days of delivery, provided the item is unused and in its original packaging. Custom and personalised items are final sale unless they arrive damaged or defective."
+        },
+        {
+          "q": "My item arrived damaged. What do I do?",
+          "a": "We are sorry to hear that! Please <contactLink>contact us</contactLink> within 7 days of delivery with a photo of the damage and your order number. We will send a replacement at no charge."
+        },
+        {
+          "q": "How long do refunds take?",
+          "a": "Once we receive your return we will process the refund within 3–5 business days. The credit will appear on your original payment method within 5–10 business days depending on your bank."
+        }
+      ]
+    },
+    {
+      "name": "Account & Privacy",
+      "items": [
+        {
+          "q": "Do I need an account to place an order?",
+          "a": "No, you can check out as a guest. Creating an account gives you order tracking, a rewards balance, and a faster checkout on future visits."
+        },
+        {
+          "q": "How do I reset my password?",
+          "a": "Click \"Sign In\" in the top navigation, then \"Forgot password?\" on the sign-in modal. Enter your email address and we'll send you a reset link within a few minutes."
+        },
+        {
+          "q": "How do I delete my account?",
+          "a": "<contactLink>Contact us</contactLink> with the subject \"Account deletion\" and we will remove your account and associated personal data within 5 business days. Note that order history may be retained for legal and tax compliance purposes."
+        }
+      ]
+    }
+  ]
+}

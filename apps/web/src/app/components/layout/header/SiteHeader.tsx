@@ -1,8 +1,5 @@
-import {
-    AppBar,
-    Box,
-    Toolbar,
-} from '@mui/material';
+import { AppBar, Box, Toolbar } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { AnnouncementBanner } from './AnnouncementBanner';
 import { Logo } from './Logo';
 import { SearchBar } from './SearchBar';
@@ -10,32 +7,32 @@ import { HeaderActions } from './HeaderActions';
 import { CategoryNav } from './CategoryNav';
 
 export const SiteHeader = () => {
+    const { t } = useTranslation('common');
+
     return (
-        <Box
-          component="header">
-            {/* Zone 1: Announcement strip */}
+        <Box component="header">
             <AnnouncementBanner
-                message="Free shipping on orders over $75!"
-                ctaText="Shop Now"
-                ctaHref="/poducts"
-                />
-            {/* Zone 2: Main header — Logo + Search + Actions */}
+                message={t('announcement.freeShipping')}
+                ctaText={t('announcement.shopNow')}
+                ctaHref="/products"
+            />
             <AppBar
-              position="sticky" //Sticks to the top as you scroll
-              elevation={0} //No drop shadow
-              sx={{
-                bgcolor: 'white',
-                borderBottom: '1px solid',
-                borderColor: 'divider',
-                top: 0,
-              }}
-              >
-                <Toolbar sx={{ gap: 2, py: 1}}>
+                position="sticky"
+                elevation={0}
+                sx={{
+                    bgcolor: 'white',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                    top: 0,
+                }}
+            >
+                <Toolbar sx={{ gap: 2, py: 1 }}>
                     <Logo />
                     <SearchBar />
                     <HeaderActions cartItemCount={0} />
                 </Toolbar>
-              </AppBar>
-          </Box>
+            </AppBar>
+            <CategoryNav />
+        </Box>
     );
 };

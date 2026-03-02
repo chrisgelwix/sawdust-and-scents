@@ -1,0 +1,82 @@
+{
+  "social": {
+    "followUs": "Follow us on Instagram and Facebook"
+  },
+  "subscribe": {
+    "heading":       "Stay in the Loop",
+    "subheading":    "Exclusive deals, new arrivals, and craft inspiration — straight to your inbox.",
+    "placeholder":   "your@email.com",
+    "ariaLabel":     "Email address for newsletter",
+    "btn":           "Subscribe",
+    "successMessage":"🎉 You're subscribed! Watch your inbox for updates."
+  },
+  "columns": {
+    "customers": {
+      "title":           "Customers",
+      "helpSupport":     "Help & Support",
+      "holidaySchedule": "Holiday Schedule",
+      "shippingTimes":   "Shipping Times"
+    },
+    "company": {
+      "title":        "Sawdust & Scents",
+      "aboutUs":      "About Us",
+      "accessibility":"Accessibility",
+      "sitemap":      "Sitemap"
+    },
+    "contact": {
+      "title":      "Get in Touch",
+      "sendMessage":"Send Us a Message",
+      "returns":    "Returns & Exchanges"
+    }
+  },
+  "popups": {
+    "closeAriaLabel": "Close dialog",
+    "holiday": {
+      "title": "Holiday Schedule",
+      "intro": "Our studio and shipping team observe the following holidays. Orders placed during these dates will be processed the next business day.",
+      "note": "Orders placed on observed holidays will be processed the next business day.",
+      "colHoliday": "Holiday",
+      "colDate":    "Date",
+      "rows": [
+        ["New Year's Day",   "January 1"],
+        ["Memorial Day",     "Last Monday in May"],
+        ["Independence Day", "July 4"],
+        ["Labor Day",        "First Monday in September"],
+        ["Thanksgiving",     "Fourth Thursday in November"],
+        ["Christmas Eve",    "December 24"],
+        ["Christmas Day",    "December 25"],
+        ["New Year's Eve",   "December 31"]
+      ]
+    },
+    "shipping": {
+      "title":       "Shipping Times",
+      "intro":       "All orders are handcrafted and ship from our studio in the U.S. Processing time is 1–3 business days before your order ships.",
+      "colMethod":   "Method",
+      "colDelivery": "Estimated Delivery",
+      "colCost":     "Cost",
+      "international":"International shipping is available. Rates calculated at checkout.",
+      "rows": [
+        ["Standard",      "5–8 business days", "From $4.99"],
+        ["Expedited",     "2–4 business days", "From $12.99"],
+        ["Overnight",     "Next business day", "From $24.99"],
+        ["Free Shipping", "5–8 business days", "Orders over $75"]
+      ]
+    },
+    "returns": {
+      "title": "Returns & Exchanges",
+      "intro": "We stand behind every item we make. If something isn't right, we'll make it right.",
+      "rows": [
+        ["30-day returns",  "Return most items within 30 days of delivery for a full refund."],
+        ["Custom orders",   "Personalized or custom items are final sale and cannot be returned."],
+        ["Damaged items",   "If your order arrives damaged, contact us within 7 days and we'll send a replacement at no charge."],
+        ["How to return",   "Email us at returns@sawdustandscents.com with your order number. We'll send a prepaid label."],
+        ["Refund timeline", "Refunds are processed within 3–5 business days of receiving your return."]
+      ]
+    }
+  },
+  "copyright": {
+    "text":    "© {{year}} Sawdust & Scents. All rights reserved.",
+    "terms":   "Terms of Sale",
+    "privacy": "Privacy Policy"
+  }
+}

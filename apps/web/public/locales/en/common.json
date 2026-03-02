@@ -1,0 +1,33 @@
+{
+  "nav": {
+    "rewards":       "Rewards",
+    "help":          "Help",
+    "signIn":        "Sign In",
+    "guest":         "Guest",
+    "cartAriaLabel": "Shopping cart"
+  },
+  "account": {
+    "welcome":       "Welcome, {{name}}",
+    "welcomeGuest":  "Welcome, Guest!",
+    "myAccount":     "My Account",
+    "myOrders":      "My Orders",
+    "signOut":       "Sign Out"
+  },
+  "categories": {
+    "ariaLabel":    "Product categories",
+    "woodSigns":    "Wood Signs",
+    "candles":      "Candles",
+    "giftSets":     "Gift Sets",
+    "customOrders": "Custom Orders",
+    "homeDecor":    "Home Decor",
+    "newArrivals":  "New Arrivals",
+    "sale":         "Sale"
+  },
+  "announcement": {
+    "freeShipping": "Free shipping on orders over $75!",
+    "shopNow":      "Shop Now"
+  },
+  "postReg": {
+    "signInWithNewAccount": "Sign in with your new account"
+  }
+}

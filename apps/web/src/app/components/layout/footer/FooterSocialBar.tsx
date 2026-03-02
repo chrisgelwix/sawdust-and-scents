@@ -1,4 +1,5 @@
 import { Box, Container, IconButton, Tooltip } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { FOOTER_MUTED, FOOTER_DIVIDER } from './footer.constants';
 
 // ── SVG brand icons ────────────────────────────────────────────────────────────
@@ -26,7 +27,6 @@ const TikTokIcon = () => (
     </svg>
 );
 
-// ── Social link data ───────────────────────────────────────────────────────────
 const SOCIAL_LINKS = [
     { label: 'Facebook',  href: 'https://facebook.com',  icon: <FacebookIcon />,  brandColor: '#1877F2' },
     { label: 'Instagram', href: 'https://instagram.com', icon: <InstagramIcon />, brandColor: '#E4405F' },
@@ -34,32 +34,32 @@ const SOCIAL_LINKS = [
     { label: 'TikTok',    href: 'https://tiktok.com',    icon: <TikTokIcon />,    brandColor: '#ffffff' },
 ];
 
-// ── Component ──────────────────────────────────────────────────────────────────
-export const FooterSocialBar = () => (
-    <Box sx={{ borderBottom: `1px solid ${FOOTER_DIVIDER}`, py: 3 }}>
-        <Container maxWidth="lg">
-            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                {SOCIAL_LINKS.map((s) => (
-                    <Tooltip key={s.label} title={`Follow us on ${s.label}`}>
-                        <IconButton
-                            component="a"
-                            href={s.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label={`Follow us on ${s.label}`}
-                            sx={{
-                                color: FOOTER_MUTED,
-                                transition: 'color 0.15s, transform 0.15s',
-                                '&:hover': {
-                                    color: s.brandColor,
-                                    transform: 'translateY(-2px)',
-                                },
-                            }}>
-                            {s.icon}
-                        </IconButton>
-                    </Tooltip>
-                ))}
-            </Box>
-        </Container>
-    </Box>
-);
+export const FooterSocialBar = () => {
+    const { t } = useTranslation('footer');
+
+    return (
+        <Box sx={{ borderBottom: `1px solid ${FOOTER_DIVIDER}`, py: 3 }}>
+            <Container maxWidth="lg">
+                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
+                    {SOCIAL_LINKS.map((s) => (
+                        <Tooltip key={s.label} title={t('social.followUs', { platform: s.label })}>
+                            <IconButton
+                                component="a"
+                                href={s.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={t('social.followUs', { platform: s.label })}
+                                sx={{
+                                    color: FOOTER_MUTED,
+                                    transition: 'color 0.15s, transform 0.15s',
+                                    '&:hover': { color: s.brandColor, transform: 'translateY(-2px)' },
+                                }}>
+                                {s.icon}
+                            </IconButton>
+                        </Tooltip>
+                    ))}
+                </Box>
+            </Container>
+        </Box>
+    );
+};

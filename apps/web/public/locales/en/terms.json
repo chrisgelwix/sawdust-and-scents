@@ -1,0 +1,48 @@
+{
+  "title":         "Terms of Sale",
+  "subtitle":      "Effective date: January 1, 2026",
+  "intro":         "Please read these terms carefully before placing an order. By completing a purchase you accept these Terms of Sale in full.",
+  "sections": {
+    "s1": {
+      "title": "1. Acceptance of Terms",
+      "body":  "By placing an order on sawdustandscents.com, you agree to these Terms of Sale. If you do not agree with any part of these terms, please do not complete a purchase. We reserve the right to update these terms at any time; the version in effect at the time of your order will govern that transaction."
+    },
+    "s2": {
+      "title": "2. Products and Pricing",
+      "p1":   "All prices are listed in US Dollars (USD) and are subject to change without notice. Product images are representative; slight variations in colour and grain are natural characteristics of handcrafted wood products and are not considered defects.",
+      "p2":   "Custom and personalised orders are made to your specifications. Please review your customisation details carefully before submitting — we are unable to accept returns on personalised items unless they arrive damaged or defective."
+    },
+    "s3": {
+      "title": "3. Payment",
+      "body":  "We accept all major credit cards, PayPal, and other payment methods listed at checkout. Payment is charged in full at the time of order. All transactions are processed securely. We do not store your full payment card details."
+    },
+    "s4": {
+      "title": "4. Order Processing",
+      "body":  "Orders are typically processed within 1–3 business days. Custom orders may take longer as noted on individual product pages. You will receive a confirmation email when your order is placed and a shipping notification with tracking information when it ships. We reserve the right to cancel orders due to pricing errors, stock issues, or suspected fraud, in which case a full refund will be issued."
+    },
+    "s5": {
+      "title": "5. Shipping",
+      "body":  "Shipping rates and estimated delivery times are shown at checkout. Sawdust & Scents is not responsible for delays caused by the carrier or circumstances outside our control (weather, customs, etc.). Risk of loss passes to you upon handoff to the carrier. For full shipping details see our <helpLink>Help & Support page</helpLink>."
+    },
+    "s6": {
+      "title": "6. Returns and Refunds",
+      "body":  "We accept returns on non-personalised items within 30 days of delivery, provided the item is unused and in its original packaging. Personalised or custom items are final sale unless they arrive damaged or defective. To initiate a return, contact us at <returnsEmailLink>returns@sawdustandscents.com</returnsEmailLink>. Refunds are processed within 3–5 business days of receiving the return."
+    },
+    "s7": {
+      "title": "7. Intellectual Property",
+      "body":  "All designs, graphics, logos, and content on this site are the property of Sawdust & Scents and may not be reproduced, distributed, or used commercially without our written permission. Customer-supplied content (e.g., names or phrases for personalised signs) remains the property of the customer."
+    },
+    "s8": {
+      "title": "8. Limitation of Liability",
+      "body":  "To the maximum extent permitted by applicable law, Sawdust & Scents shall not be liable for any indirect, incidental, special, or consequential damages arising out of your use of our products or website. Our total liability for any claim shall not exceed the amount you paid for the order in question."
+    },
+    "s9": {
+      "title": "9. Governing Law",
+      "body":  "These Terms of Sale are governed by the laws of the State of North Carolina`, without regard to its conflict of law principles. Any disputes shall be resolved in the courts of Harnett County, North Carolina."
+    },
+    "s10": {
+      "title": "10. Contact",
+      "body":  "Questions about these terms? <contactLink>Send us a message</contactLink> or email us at <legalEmailLink>legal@sawdustandscents.com</legalEmailLink>."
+    }
+  }
+}

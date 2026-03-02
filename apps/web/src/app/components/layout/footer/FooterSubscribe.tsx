@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Box, Button, InputBase, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { FOOTER_MUTED, FOOTER_BRIGHT, FOOTER_ACCENT } from './footer.constants';
 
 // Rendered as the first column inside FooterLinkGrid — no zone wrapper needed.
 export const FooterSubscribe = () => {
-    const [email, setEmail]           = useState('');
+    const { t } = useTranslation('footer');
+    const [email,      setEmail]      = useState('');
     const [subscribed, setSubscribed] = useState(false);
 
     const handleSubscribe = () => {
@@ -16,7 +18,6 @@ export const FooterSubscribe = () => {
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-            {/* Heading — matches FooterLinkColumn heading style */}
             <Typography
                 variant="subtitle2"
                 sx={{
@@ -26,27 +27,27 @@ export const FooterSubscribe = () => {
                     textTransform: 'uppercase',
                     mb: 0.5,
                 }}>
-                Stay in the Loop
+                {t('subscribe.heading')}
             </Typography>
 
             <Typography variant="body2" sx={{ color: FOOTER_MUTED }}>
-                Exclusive deals, new arrivals, and craft inspiration — straight to your inbox.
+                {t('subscribe.subheading')}
             </Typography>
 
             {subscribed ? (
                 <Typography sx={{ color: FOOTER_ACCENT, fontWeight: 600, fontSize: '0.9rem' }}>
-                    🎉 You're subscribed! Watch your inbox for updates.
+                    {t('subscribe.successMessage')}
                 </Typography>
             ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 0.5 }}>
                     <InputBase
                         fullWidth
                         type="email"
-                        placeholder="your@email.com"
+                        placeholder={t('subscribe.placeholder')}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSubscribe()}
-                        inputProps={{ 'aria-label': 'Email address for newsletter' }}
+                        inputProps={{ 'aria-label': t('subscribe.ariaLabel') }}
                         sx={{
                             bgcolor: '#4e342e',
                             borderRadius: 1,
@@ -68,7 +69,7 @@ export const FooterSubscribe = () => {
                             textTransform: 'none',
                             '&:hover': { bgcolor: '#ffa726' },
                         }}>
-                        Subscribe
+                        {t('subscribe.btn')}
                     </Button>
                 </Box>
             )}

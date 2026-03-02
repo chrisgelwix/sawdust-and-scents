@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -14,6 +16,7 @@ import { ManagementModule } from '../modules/management/management.module';
 import { CommonModule } from '../modules/common/common.module';
 import { RewardsModule } from '../modules/rewards/rewards.module';
 import { SubscriptionsModule } from '../modules/subscriptions/subscriptions.module';
+import { ContactModule } from '../modules/contact/contact.module';
 
 @Module({
   imports: [
@@ -21,6 +24,7 @@ import { SubscriptionsModule } from '../modules/subscriptions/subscriptions.modu
       isGlobal: true,
       envFilePath: '.env.local',
     }),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 3 }]),
     CommonModule,
     AuthModule,
     ProductsModule,
@@ -33,8 +37,12 @@ import { SubscriptionsModule } from '../modules/subscriptions/subscriptions.modu
     ManagementModule,
     RewardsModule,
     SubscriptionsModule,
+    ContactModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },  // rate limiting applied globally
+  ],
 })
 export class AppModule {}
