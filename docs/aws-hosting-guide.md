@@ -187,28 +187,45 @@ Keycloak runs from the official image, but you need to bake your local realm con
 
 #### 1c-i. Export the realm from your running local Keycloak
 
-Make sure your local Keycloak container is running (it is started by your `docker-compose` or equivalent setup).
+> **PowerShell note:** PowerShell uses a backtick (`` ` ``) for line continuation, not a backslash (`\`). All multi-line commands in this guide use backticks.
 
-```bash
-# List running containers so you can find the Keycloak container name
-# Look for a container whose image is quay.io/keycloak/keycloak or similar
-docker ps
+> **Keycloak 20+ note:** Running `kc.sh export` inside a live container fails silently — Keycloak 20+ starts a second JVM that conflicts with the running server. Use one of the three methods below instead.
 
-# Export only the sdas-realm (not the master realm) into a temp directory inside the container
-# Replace <keycloak-container-name> with the actual name shown by `docker ps`
-# kc.sh export is the Keycloak CLI tool; --realm limits the export to a single realm
-docker exec -it <keycloak-container-name> \
-  /opt/keycloak/bin/kc.sh export \
-  --dir /tmp/export \
-  --realm sdas-realm
+Make sure your local Keycloak container is running, then create the output folder:
 
-# Create the destination folder in your monorepo if it doesn't exist yet
-mkdir -p infrastructure/keycloak
+```powershell
+# Create the destination folder in your monorepo (safe to run even if it already exists)
+New-Item -ItemType Directory -Force -Path infrastructure/keycloak
+```
 
-# Copy the exported JSON from inside the container to your local machine
-# This file will be committed to the repo so CI/CD and ECS can use it
-docker cp <keycloak-container-name>:/tmp/export/sdas-realm.json \
-  ./infrastructure/keycloak/sdas-realm.json
+**Method A — Admin UI (recommended, easiest, no CLI needed)**
+
+1. Open `http://localhost:8080` and log in to the Admin Console
+2. Select **sdas-realm** from the realm selector (top-left dropdown)
+3. Click **Realm Settings** → top-right **Action** dropdown → **Partial export**
+4. Toggle **ON**: *Include groups and roles* and *Include clients*
+5. Click **Export** and save the downloaded JSON to `infrastructure/keycloak/sdas-realm.json`
+
+**Method B — Fresh export container (if you prefer CLI)**
+
+```powershell
+# Spins up a throwaway Keycloak container that connects to your existing local Postgres DB,
+# exports the realm, and writes the JSON directly into the mounted folder.
+# Replace <password> with POSTGRES_PASSWORD from your .env.local
+# host.docker.internal resolves to your Windows host machine from inside the container
+docker run --rm -e KC_DB=postgres -e KC_DB_URL="jdbc:postgresql://host.docker.internal:5432/keycloak" -e KC_DB_USERNAME=keycloak -e KC_DB_PASSWORD=<password> -v "${PWD}/infrastructure/keycloak:/tmp/export" quay.io/keycloak/keycloak:latest export --dir /tmp/export --realm sdas-realm
+```
+
+**Method C — Admin REST API (PowerShell)**
+
+```powershell
+# Step 1: Authenticate as admin and capture the access token
+# Replace admin/admin with your local Keycloak admin credentials
+$token = (Invoke-RestMethod -Method Post -Uri "http://localhost:8080/realms/master/protocol/openid-connect/token" -ContentType "application/x-www-form-urlencoded" -Body "client_id=admin-cli&username=admin&password=admin&grant_type=password").access_token
+
+# Step 2: Call the partial-export endpoint — includes clients, groups, and roles
+# The result is written directly to your local filesystem with -OutFile
+Invoke-RestMethod -Method Post -Uri "http://localhost:8080/admin/realms/sdas-realm/partial-export?exportClients=true&exportGroupsAndRoles=true" -Headers @{ Authorization = "Bearer $token" } -OutFile "./infrastructure/keycloak/sdas-realm.json"
 ```
 
 After running this you should have `infrastructure/keycloak/sdas-realm.json` on disk.  
@@ -235,7 +252,7 @@ COPY sdas-realm.json /opt/keycloak/data/import/sdas-realm.json
 
 #### 1c-iii. Build and smoke-test the image locally
 
-```bash
+```powershell
 # Build the custom Keycloak image from the infrastructure/keycloak directory
 # The context is infrastructure/keycloak so COPY can find sdas-realm.json
 docker build -t sdas-keycloak ./infrastructure/keycloak
@@ -244,13 +261,8 @@ docker build -t sdas-keycloak ./infrastructure/keycloak
 # KC_DB=dev-file uses an embedded H2 database — fine for a smoke test, not for production
 # KC_BOOTSTRAP_ADMIN_USERNAME / KC_BOOTSTRAP_ADMIN_PASSWORD set the initial admin account
 # -p 8080:8080 exposes the Keycloak UI on http://localhost:8080
-docker run --rm \
-  -e KC_DB=dev-file \
-  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
-  -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
-  -p 8080:8080 \
-  sdas-keycloak \
-  start-dev
+# Single-line format works in both PowerShell and bash:
+docker run --rm -e KC_DB=dev-file -e KC_BOOTSTRAP_ADMIN_USERNAME=admin -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin -p 8080:8080 sdas-keycloak start-dev
 
 # Open http://localhost:8080/admin in your browser
 # Log in with admin / admin
@@ -282,23 +294,21 @@ aws ecr create-repository --repository-name sdas/keycloak --region us-east-1
 
 ### Push your first image
 
-```bash
+```powershell
 # Get a temporary Docker login token from ECR and pipe it directly into docker login
 # aws ecr get-login-password generates a short-lived token (12 hours)
 # --username AWS is required by ECR (always literally "AWS", not your username)
 # --password-stdin reads the token from the pipe rather than exposing it in the command
 # Replace <account-id> with your 12-digit AWS account ID
-aws ecr get-login-password --region us-east-1 \
-  | docker login --username AWS --password-stdin \
-    <account-id>.dkr.ecr.us-east-1.amazonaws.com
+# NOTE: keep this as a single line — the pipe must not be split across lines in PowerShell
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
 
 # Build the API image locally (same as step 1b)
 docker build -f apps/api/Dockerfile -t sdas-api .
 
 # Tag the local image with the full ECR URI so Docker knows where to push it
 # sdas-api:latest is the local name, the long URI is the ECR destination
-docker tag sdas-api:latest \
-  <account-id>.dkr.ecr.us-east-1.amazonaws.com/sdas/api:latest
+docker tag sdas-api:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/sdas/api:latest
 
 # Push the tagged image up to ECR
 # ECS will pull from this URI when starting your containers
@@ -313,9 +323,12 @@ Create a CDK project at the monorepo root to define all infrastructure.
 
 ### 3a. Initialise the CDK project
 
-```bash
-# Create the infrastructure directory and enter it
-mkdir infrastructure && cd infrastructure
+```powershell
+# Create a dedicated cdk subfolder inside infrastructure/ and enter it
+# cdk init requires an EMPTY directory — infrastructure/ already contains keycloak/
+# so we scaffold CDK one level deeper at infrastructure/cdk/
+mkdir infrastructure/cdk
+cd infrastructure/cdk
 
 # Scaffold a new CDK app in TypeScript
 # This creates bin/, lib/, package.json, tsconfig.json, cdk.json
@@ -323,23 +336,24 @@ cdk init app --language typescript
 
 # Install CDK construct libraries for each AWS service we'll use
 # Each package corresponds to one AWS service
-npm install @aws-cdk/aws-s3 @aws-cdk/aws-cloudfront \         # Frontend hosting
-             @aws-cdk/aws-ecs @aws-cdk/aws-ecs-patterns \      # Container orchestration
-             @aws-cdk/aws-rds @aws-cdk/aws-secretsmanager \    # Database + secrets
-             @aws-cdk/aws-route53 @aws-cdk/aws-certificatemanager  # DNS + SSL
+npm install @aws-cdk/aws-s3 @aws-cdk/aws-cloudfront @aws-cdk/aws-ecs @aws-cdk/aws-ecs-patterns @aws-cdk/aws-rds @aws-cdk/aws-secretsmanager @aws-cdk/aws-route53 @aws-cdk/aws-certificatemanager
 ```
 
 ### 3b. Stack structure
 
 ```
 infrastructure/
-  lib/
-    sdas-frontend-stack.ts    ← S3 bucket + CloudFront distribution for the React app
-    sdas-backend-stack.ts     ← ECS Fargate services for API + Keycloak, plus the ALB
-    sdas-database-stack.ts    ← RDS PostgreSQL instance
-    sdas-dns-stack.ts         ← Route 53 hosted zone + ACM SSL certificates
-  bin/
-    sdas.ts                   ← Entry point — instantiates all stacks, passes env name between them
+  keycloak/                   ← Keycloak Dockerfile + sdas-realm.json (already exists)
+  cdk/                        ← CDK TypeScript app (created by cdk init)
+    lib/
+      sdas-frontend-stack.ts  ← S3 bucket + CloudFront distribution for the React app
+      sdas-backend-stack.ts   ← ECS Fargate services for API + Keycloak, plus the ALB
+      sdas-database-stack.ts  ← RDS PostgreSQL instance
+      sdas-dns-stack.ts       ← Route 53 hosted zone + ACM SSL certificates
+    bin/
+      sdas.ts                 ← Entry point — instantiates all stacks, passes env name between them
+    package.json
+    cdk.json
 ```
 
 ### 3c. Environment-aware entry point (`bin/sdas.ts`)
@@ -382,16 +396,18 @@ new SdasFrontendStack(app,                  `Sdas-${envName}-Frontend`, { env: a
 ```
 
 Deploy to test:
-```bash
+```powershell
+# CDK commands must be run from inside the cdk/ subfolder where cdk.json lives
+cd infrastructure/cdk
 # Deploys all four stacks to the test environment
 # --all means deploy every stack defined in bin/sdas.ts
 # -c env=test passes "test" as the envName context variable
-cd infrastructure
 cdk deploy --all -c env=test
 ```
 
 Deploy to production:
-```bash
+```powershell
+cd infrastructure/cdk
 # Same command but with env=prod — creates entirely separate AWS resources
 cdk deploy --all -c env=prod
 ```
@@ -525,14 +541,185 @@ export class SdasDatabaseStack extends cdk.Stack {
 
 ### 3f. Backend stack — ECS Fargate for API + Keycloak
 
-The backend stack uses the `ApplicationLoadBalancedFargateService` CDK pattern, which creates the ECS cluster, task definition, service, and ALB in one construct.
+Create `infrastructure/cdk/lib/sdas-backend-stack.ts`:
 
-Key points to implement:
+```typescript
+import * as cdk from 'aws-cdk-lib';
+import * as ecs from 'aws-cdk-lib/aws-ecs';                         // ECS cluster + task definitions
+import * as ecsPatterns from 'aws-cdk-lib/aws-ecs-patterns';        // ApplicationLoadBalancedFargateService
+import * as ecr from 'aws-cdk-lib/aws-ecr';                         // ECR image repositories
+import * as rds from 'aws-cdk-lib/aws-rds';                         // RDS instance type (for props)
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';   // Secrets Manager lookups
+import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';    // ALB listener rules
+import { Construct } from 'constructs';
 
-- **Keycloak service**: use `quay.io/keycloak/keycloak:latest`, pass DB credentials from Secrets Manager as environment variables, set `KC_DB=postgres`, `KC_HOSTNAME` to your auth subdomain
-- **API service**: use your ECR image, pass `KEYCLOAK_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_SECRET` from Secrets Manager
-- **ALB listener rules**: route `/auth/*` to Keycloak, all other traffic to the API
-- Set `desiredCount: 1` for test, `desiredCount: 2` for production (auto-scaling)
+// Props this stack expects from bin/sdas.ts
+interface SdasBackendStackProps extends cdk.StackProps {
+    envName: string;                  // 'test' or 'prod'
+    db: rds.DatabaseInstance;         // RDS instance passed in from the database stack
+}
+
+export class SdasBackendStack extends cdk.Stack {
+    constructor(scope: Construct, id: string, props: SdasBackendStackProps) {
+        super(scope, id, props);
+
+        const { envName, db } = props;
+
+        // Resolve domain suffix based on environment
+        // test → test-api.sawdustandscents.com / test-auth.sawdustandscents.com
+        // prod → api.sawdustandscents.com / auth.sawdustandscents.com
+        const apiDomain  = envName === 'prod' ? 'api.sawdustandscents.com'  : 'test-api.sawdustandscents.com';
+        const authDomain = envName === 'prod' ? 'auth.sawdustandscents.com' : 'test-auth.sawdustandscents.com';
+
+        // Create a single ECS cluster — hosts both the API and Keycloak services
+        // A cluster is a logical grouping of Fargate tasks (no EC2 instances to manage)
+        const cluster = new ecs.Cluster(this, 'Cluster', {
+            clusterName: `sdas-${envName}`,  // e.g. sdas-test, sdas-prod
+        });
+
+        // ── Secrets ──────────────────────────────────────────────────────────────────
+        // Look up secrets stored in AWS Secrets Manager by name
+        // fromSecretNameV2 references an EXISTING secret — does NOT create it
+        // You must run the `aws secretsmanager create-secret` commands in Step 4 first
+
+        // The Keycloak admin password (auto-generated random string stored in Step 4)
+        const keycloakAdminSecret = secretsmanager.Secret.fromSecretNameV2(
+            this, 'KeycloakAdminSecret', `sdas/${envName}/keycloak-admin-password`
+        );
+
+        // The Keycloak client secret (copied from your local Keycloak console in Step 4)
+        const keycloakClientSecret = secretsmanager.Secret.fromSecretNameV2(
+            this, 'KeycloakClientSecret', `sdas/${envName}/keycloak-client-secret`
+        );
+
+        // The RDS DB credentials — CDK auto-stored these in Secrets Manager when creating the DB
+        // secret! is non-null assertion — the secret always exists when CDK generates it
+        const dbSecret = db.secret!;
+
+        // ── ECR repositories ─────────────────────────────────────────────────────────
+        // Look up the ECR repositories you created in Step 2
+        // fromRepositoryName references EXISTING repos — does NOT create them
+        const apiRepo = ecr.Repository.fromRepositoryName(this, 'ApiRepo', 'sdas/api');
+        const keycloakRepo = ecr.Repository.fromRepositoryName(this, 'KeycloakRepo', 'sdas/keycloak');
+
+        // ── Keycloak Fargate service ─────────────────────────────────────────────────
+        // ApplicationLoadBalancedFargateService creates the task definition, ECS service,
+        // and ALB in one construct — it wires everything together automatically
+        const keycloakService = new ecsPatterns.ApplicationLoadBalancedFargateService(
+            this, 'KeycloakService', {
+                cluster,
+                // Use the image tag that matches the current environment
+                // 'latest' is fine for test; use a pinned SHA tag for prod (more predictable)
+                taskImageOptions: {
+                    image: ecs.ContainerImage.fromEcrRepository(keycloakRepo, 'latest'),
+                    containerPort: 8080, // Keycloak's default HTTP port
+                    environment: {
+                        // Tell Keycloak to use PostgreSQL (not the embedded H2 dev database)
+                        KC_DB:       'postgres',
+                        // JDBC connection string using the RDS endpoint CDK resolved for us
+                        KC_DB_URL:   `jdbc:postgresql://${db.dbInstanceEndpointAddress}/keycloak`,
+                        // The public hostname Keycloak uses when building redirect URIs
+                        KC_HOSTNAME: authDomain,
+                    },
+                    secrets: {
+                        // Inject DB username/password from Secrets Manager at container startup
+                        // ECS fetches these at runtime — they are NEVER baked into the image
+                        KC_DB_USERNAME:      ecs.Secret.fromSecretsManager(dbSecret, 'username'),
+                        KC_DB_PASSWORD:      ecs.Secret.fromSecretsManager(dbSecret, 'password'),
+                        // Keycloak admin console credentials
+                        KEYCLOAK_ADMIN:          ecs.Secret.fromSecretsManager(keycloakAdminSecret),
+                        KEYCLOAK_ADMIN_PASSWORD: ecs.Secret.fromSecretsManager(keycloakAdminSecret),
+                    },
+                },
+                // 1 task in test (cheaper); 2 in prod (no single point of failure)
+                desiredCount: envName === 'prod' ? 2 : 1,
+                // 256 CPU units = 0.25 vCPU; 512 MB RAM — sufficient for Keycloak under low load
+                cpu:    512,
+                memoryLimitMiB: 1024,
+                listenerPort: 443,  // ALB listens on HTTPS
+                publicLoadBalancer: true,
+            }
+        );
+
+        // ── API Fargate service ───────────────────────────────────────────────────────
+        const apiService = new ecsPatterns.ApplicationLoadBalancedFargateService(
+            this, 'ApiService', {
+                cluster,
+                taskImageOptions: {
+                    image: ecs.ContainerImage.fromEcrRepository(apiRepo, 'latest'),
+                    containerPort: 3000, // NestJS default port
+                    environment: {
+                        // Non-sensitive config is fine in environment (visible in task definition)
+                        KEYCLOAK_URL:   `https://${authDomain}`,  // URL of the Keycloak service
+                        KEYCLOAK_REALM: 'sdas-realm',              // realm name
+                        NODE_ENV:       'production',              // disables dev-only NestJS features
+                        POSTGRES_HOST:  db.dbInstanceEndpointAddress, // RDS hostname
+                        POSTGRES_PORT:  db.dbInstanceEndpointPort,
+                    },
+                    secrets: {
+                        // Sensitive values injected at runtime from Secrets Manager
+                        POSTGRES_USER:            ecs.Secret.fromSecretsManager(dbSecret, 'username'),
+                        POSTGRES_PASSWORD:         ecs.Secret.fromSecretsManager(dbSecret, 'password'),
+                        KEYCLOAK_CLIENT_SECRET:    ecs.Secret.fromSecretsManager(keycloakClientSecret),
+                    },
+                },
+                desiredCount: envName === 'prod' ? 2 : 1,
+                cpu:    256,
+                memoryLimitMiB: 512,
+                listenerPort: 443,
+                publicLoadBalancer: true,
+            }
+        );
+
+        // ── ALB path-based routing ────────────────────────────────────────────────────
+        // By default both services get their own ALB. For a shared ALB you would add
+        // listener rules here to route /auth/* to Keycloak and everything else to the API.
+        // For simplicity each service has its own ALB — the domain names (api.* vs auth.*)
+        // handle the routing at the DNS level instead.
+
+        // ── CloudFormation outputs ────────────────────────────────────────────────────
+        // These values are printed after `cdk deploy` — useful for configuring GitHub Secrets
+
+        // The DNS name of the Keycloak ALB — point auth.* CNAME here in Route 53
+        new cdk.CfnOutput(this, 'KeycloakAlbDns', {
+            value: keycloakService.loadBalancer.loadBalancerDnsName,
+        });
+
+        // The DNS name of the API ALB — point api.* CNAME here in Route 53
+        new cdk.CfnOutput(this, 'ApiAlbDns', {
+            value: apiService.loadBalancer.loadBalancerDnsName,
+        });
+    }
+}
+```
+
+Also create `infrastructure/cdk/lib/sdas-dns-stack.ts`:
+
+```typescript
+import * as cdk from 'aws-cdk-lib';
+import * as r53 from 'aws-cdk-lib/aws-route53'; // Route 53 hosted zone
+import { Construct } from 'constructs';
+
+interface SdasDnsStackProps extends cdk.StackProps {
+    envName: string; // 'test' or 'prod'
+}
+
+export class SdasDnsStack extends cdk.Stack {
+    // Expose the hosted zone so the frontend stack can create DNS records in it
+    public readonly hostedZone: r53.IHostedZone;
+
+    constructor(scope: Construct, id: string, props: SdasDnsStackProps) {
+        super(scope, id, props);
+
+        // Look up the EXISTING Route 53 hosted zone for sawdustandscents.com
+        // fromLookup does NOT create a new zone — it finds the one already in your AWS account
+        // The hosted zone must exist before you run cdk deploy (created during domain registration)
+        this.hostedZone = r53.HostedZone.fromLookup(this, 'HostedZone', {
+            domainName: 'sawdustandscents.com',
+        });
+    }
+}
+```
 
 ---
 
@@ -547,16 +734,12 @@ Never put secrets in environment variables baked into images. Store them in **AW
 # --name uses a path-style naming convention (sdas/env/name) for easy filtering
 # openssl rand -base64 32 generates a cryptographically random 32-byte password
 # The $(...) runs the openssl command and passes its output as the secret value
-aws secretsmanager create-secret \
-  --name "sdas/test/keycloak-admin-password" \
-  --secret-string "$(openssl rand -base64 32)"
+aws secretsmanager create-secret --name "sdas/test/keycloak-admin-password" --secret-string "$(openssl rand -base64 32)"
 
 # Create a secret for the Keycloak client secret (used by the NestJS API to verify tokens)
 # Replace 'your-client-secret-here' with the value from your local Keycloak admin console
 # (Clients → sdas-api → Credentials → Client secret)
-aws secretsmanager create-secret \
-  --name "sdas/test/keycloak-client-secret" \
-  --secret-string "your-client-secret-here"
+aws secretsmanager create-secret --name "sdas/test/keycloak-client-secret" --secret-string "your-client-secret-here"
 
 # Repeat the above two commands for the production environment
 # Just change the path prefix from sdas/test/ to sdas/prod/
@@ -625,28 +808,20 @@ aws s3 sync dist/apps/web/ s3://sdas-test-frontend --delete
 # Without this, users may see the old version for up to 24 hours (the default TTL)
 # --distribution-id is the CloudFront distribution ID from the CDK output (e.g. E1234ABCDEF)
 # --paths "/*" invalidates every cached file in the distribution
-aws cloudfront create-invalidation \
-  --distribution-id <your-distribution-id> \
-  --paths "/*"
+aws cloudfront create-invalidation --distribution-id <your-distribution-id> --paths "/*"
 ```
 
 ### Environment variables at build time
 
 Vite embeds env vars at build time via the `define` block in `vite.config.mts`. For each environment, pass the correct values:
 
-```bash
-# Test build — sets environment variables that Vite bakes into the JS bundle at build time
-# These values point the frontend at the test environment's Keycloak and API servers
-KEYCLOAK_URL=https://auth.test.sawdustandscents.com \   # Keycloak server for test env
-KEYCLOAK_REALM=sdas-realm \                             # Keycloak realm name (same for both envs)
-KEYCLOAK_WEB_CLIENT_ID=sdas-web \                       # public Keycloak client ID for the browser
-API_BASE_URL=https://test-api.sawdustandscents.com \    # NestJS API base URL for test env
-npx nx build web --configuration=production
+```powershell
+# Test build — set env vars first, then run the build (PowerShell syntax)
+# These values are baked into the JS bundle by Vite at build time
+$env:KEYCLOAK_URL="https://auth.test.sawdustandscents.com"; $env:KEYCLOAK_REALM="sdas-realm"; $env:KEYCLOAK_WEB_CLIENT_ID="sdas-web"; $env:API_BASE_URL="https://test-api.sawdustandscents.com"; npx nx build web --configuration=production
 
-# Production build — same command, different URLs pointing at the live environment
-KEYCLOAK_URL=https://auth.sawdustandscents.com \        # live Keycloak server
-...
-npx nx build web --configuration=production
+# Production build — same pattern, different URLs
+$env:KEYCLOAK_URL="https://auth.sawdustandscents.com"; $env:KEYCLOAK_REALM="sdas-realm"; $env:KEYCLOAK_WEB_CLIENT_ID="sdas-web"; $env:API_BASE_URL="https://api.sawdustandscents.com"; npx nx build web --configuration=production
 ```
 
 ---
@@ -757,10 +932,10 @@ jobs:
       # --force-new-deployment pulls the new 'latest' image even if the task definition hasn't changed
       - name: Deploy to ECS
         run: |
-          aws ecs update-service \
-            --cluster sdas-test \       # the ECS cluster name (created by CDK)
-            --service sdas-test-api \   # the ECS service name (created by CDK)
-            --force-new-deployment      # triggers a rolling replacement of running tasks
+          # --cluster is the ECS cluster name (created by CDK)
+          # --service is the ECS service name (created by CDK)
+          # --force-new-deployment triggers a rolling replacement of running tasks
+          aws ecs update-service --cluster sdas-test --service sdas-test-api --force-new-deployment
 
   # Job 3: build the React app and deploy to S3 + CloudFront
   deploy-frontend:
@@ -797,9 +972,8 @@ jobs:
       # Without this, CloudFront serves cached files for up to 24 hours
       - name: Invalidate CloudFront
         run: |
-          aws cloudfront create-invalidation \
-            --distribution-id ${{ secrets.TEST_CLOUDFRONT_DISTRIBUTION_ID }} \
-            --paths "/*"  # invalidate all cached files
+          # --paths "/*" invalidates every cached file so users see the new version immediately
+          aws cloudfront create-invalidation --distribution-id ${{ secrets.TEST_CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
 ```
 
 ### `.github/workflows/deploy-prod.yml`
@@ -855,16 +1029,12 @@ You need to migrate your local `sdas-realm` configuration to the hosted Keycloak
 # kc.sh export is the Keycloak CLI tool for exporting realm configuration
 # --dir /tmp/export is the destination directory inside the container
 # --realm sdas-realm specifies which realm to export (just yours, not the master realm)
-docker exec -it <keycloak-container-name> \
-  /opt/keycloak/bin/kc.sh export \
-  --dir /tmp/export \
-  --realm sdas-realm
+docker exec -it <keycloak-container-name> /opt/keycloak/bin/kc.sh export --dir /tmp/export --realm sdas-realm
 
 # Copy the exported JSON file out of the container onto your local machine
 # docker cp works like the regular cp command but crosses the container boundary
 # The destination ./infrastructure/keycloak/ keeps it in the repo for CI/CD to use
-docker cp <keycloak-container-name>:/tmp/export/sdas-realm.json \
-  ./infrastructure/keycloak/sdas-realm.json
+docker cp <keycloak-container-name>:/tmp/export/sdas-realm.json ./infrastructure/keycloak/sdas-realm.json
 ```
 
 ### Import into AWS Keycloak on first boot
@@ -908,19 +1078,11 @@ After the first successful boot, remove `KC_IMPORT` to prevent re-importing on e
 # --subject-alternative-names adds additional domains covered by the same certificate
 # --validation-method DNS uses CNAME records for ownership verification (automated by CDK)
 # --region us-east-1 is MANDATORY for CloudFront — certificates used by CloudFront MUST be in us-east-1
-aws acm request-certificate \
-  --domain-name "test.sawdustandscents.com" \
-  --subject-alternative-names "test-api.sawdustandscents.com" "test-auth.sawdustandscents.com" \
-  --validation-method DNS \
-  --region us-east-1
+aws acm request-certificate --domain-name "test.sawdustandscents.com" --subject-alternative-names "test-api.sawdustandscents.com" "test-auth.sawdustandscents.com" --validation-method DNS --region us-east-1
 
 # Request a certificate for the production environment
 # www. is included as an alternative name so both www and apex domain work with HTTPS
-aws acm request-certificate \
-  --domain-name "sawdustandscents.com" \
-  --subject-alternative-names "www.sawdustandscents.com" "api.sawdustandscents.com" "auth.sawdustandscents.com" \
-  --validation-method DNS \
-  --region us-east-1
+aws acm request-certificate --domain-name "sawdustandscents.com" --subject-alternative-names "www.sawdustandscents.com" "api.sawdustandscents.com" "auth.sawdustandscents.com" --validation-method DNS --region us-east-1
 ```
 
 ACM will give you CNAME records to add to Route 53 for validation. The CDK `DnsValidatedCertificate` construct does this automatically.
@@ -976,13 +1138,13 @@ new cloudwatch.Alarm(this, 'ApiCpuAlarm', {
 - [ ] Secrets stored in AWS Secrets Manager (`sdas/test/*` and `sdas/prod/*`)
 - [ ] `sdas-realm.json` exported from local Keycloak and saved to `infrastructure/keycloak/`
 - [ ] GitHub Secrets configured in repo settings
-- [ ] CDK bootstrapped: `cdk bootstrap aws://<account>/<region>`
+- [ ] CDK bootstrapped (run from `infrastructure/cdk/`): `cdk bootstrap aws://<account>/<region>`
   - This creates a staging S3 bucket and IAM roles CDK needs to deploy stacks
 
 ### Test environment deploy
 
-```bash
-cd infrastructure
+```powershell
+cd infrastructure/cdk
 # Deploy all four stacks to the test environment
 # CDK compares the desired state (your TypeScript) against the current AWS state
 # and applies only the differences — safe to run repeatedly
@@ -991,8 +1153,8 @@ cdk deploy --all -c env=test
 
 ### Production environment deploy
 
-```bash
-cd infrastructure
+```powershell
+cd infrastructure/cdk
 # Same command as test but targets production resources
 # Consider running cdk diff -c env=prod first to preview changes before applying
 cdk deploy --all -c env=prod
