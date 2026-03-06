@@ -390,9 +390,7 @@ start coverage\e2e\index.html  # Windows
 - **Integration Tests**: Key workflows covered
 - **API Tests**: All endpoints tested
 - **E2E Tests**: Critical user journeys
-- **NIST Tests**: Required controls validated
-
-## Dependencies### Testing Libraries
+- **NIST Tests**: Required controls validated## Dependencies### Testing Libraries
 - `@nx/jest` - Jest executor for Nx
 - `jest` - Testing framework
 - `ts-jest` - TypeScript support for Jest

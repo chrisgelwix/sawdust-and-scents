@@ -1,37 +1,55 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-// @sendgrid/mail is a CommonJS module whose API lives on the default export.
-// Using a default import (or require) avoids the "setApiKey is not a function"
-// error that occurs when the bundler wraps the namespace and .setApiKey ends
-// up on SendGrid.default instead of SendGrid directly.
-import SendGrid from '@sendgrid/mail';
+import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import { ContactDto } from './dto/contact.dto';
 
 @Injectable()
 export class ContactService {
     private readonly logger = new Logger(ContactService.name);
+    private readonly ses: SESv2Client;
+    private readonly toEmail: string;
+    private readonly fromEmail: string;
 
     constructor(private config: ConfigService) {
-        SendGrid.setApiKey(this.config.getOrThrow('SENDGRID_API_KEY'));
+        // SESv2Client uses the ECS task role credentials automatically — no API key needed.
+        // The task role in CDK must have ses:SendEmail permission on the verified SES identity.
+        this.ses = new SESv2Client({ region: process.env.AWS_REGION ?? 'us-east-1' });
+
+        // These are plain addresses, not secrets — stored as env vars in the CDK task definition.
+        // CONTACT_FROM_EMAIL must be a verified SES identity (domain or individual address).
+        this.toEmail   = this.config.getOrThrow<string>('CONTACT_TO_EMAIL');
+        this.fromEmail = this.config.getOrThrow<string>('CONTACT_FROM_EMAIL');
     }
 
     async sendContactEmail(contactDto: ContactDto): Promise<void> {
-        const toEmail = this.config.getOrThrow<string>('CONTACT_TO_EMAIL');
-        const fromEmail = this.config.getOrThrow<string>('CONTACT_FROM_EMAIL');
-
-        const message = {
-            to: toEmail,
-            from: fromEmail,
-            replyTo: contactDto.email,  // replies go directly to the customer
-            subject: `[Contact] ${contactDto.subject}`,
-            text: this.buildPlainMessage(contactDto),
-            html: this.buildHtmlMessage(contactDto),
-        };
+        const command = new SendEmailCommand({
+            FromEmailAddress: this.fromEmail,
+            Destination: { ToAddresses: [this.toEmail] },
+            ReplyToAddresses: [contactDto.email],
+            Content: {
+                Simple: {
+                    Subject: {
+                        Data: `[Contact] ${contactDto.subject}`,
+                        Charset: 'UTF-8',
+                    },
+                    Body: {
+                        Text: {
+                            Data: this.buildPlainMessage(contactDto),
+                            Charset: 'UTF-8',
+                        },
+                        Html: {
+                            Data: this.buildHtmlMessage(contactDto),
+                            Charset: 'UTF-8',
+                        },
+                    },
+                },
+            },
+        });
 
         try {
-            await SendGrid.send(message);
+            await this.ses.send(command);
         } catch (error) {
-            this.logger.error('Send Failed: ', error);
+            this.logger.error('SES send failed:', error);
             throw new InternalServerErrorException('Failed to send contact email');
         }
     }
@@ -48,9 +66,9 @@ export class ContactService {
 
     private buildHtmlMessage(contactDto: ContactDto): string {
         return [
-            `<p>From: ${contactDto.name} <${contactDto.email}></p>`,
-            contactDto.orderNumber ? `<p>Order Number: ${contactDto.orderNumber}</p>` : '',
-            `<p>Subject: ${contactDto.subject}</p>`,
+            `<p><strong>From:</strong> ${contactDto.name} &lt;${contactDto.email}&gt;</p>`,
+            contactDto.orderNumber ? `<p><strong>Order Number:</strong> ${contactDto.orderNumber}</p>` : '',
+            `<p><strong>Subject:</strong> ${contactDto.subject}</p>`,
             `<p>${contactDto.message}</p>`,
         ].join('');
     }

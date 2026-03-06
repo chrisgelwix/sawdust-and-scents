@@ -395,21 +395,24 @@ const beStack  = new SdasBackendStack(app,  `Sdas-${envName}-Backend`,  { env: a
 new SdasFrontendStack(app,                  `Sdas-${envName}-Frontend`, { env: awsEnv, envName, hostedZone: dnsStack.hostedZone });
 ```
 
-Deploy to test:
+Bootstrap CDK (one-time per AWS account/region):
 ```powershell
-# CDK commands must be run from inside the cdk/ subfolder where cdk.json lives
+# Run this once per account/region before any deploys.
+# CDK bootstraps provider resources (staging S3 bucket, IAM roles) the CDK CLI needs.
 cd infrastructure/cdk
-# Deploys all four stacks to the test environment
-# --all means deploy every stack defined in bin/sdas.ts
-# -c env=test passes "test" as the envName context variable
-cdk deploy --all -c env=test
+npx cdk bootstrap
 ```
 
-Deploy to production:
+Deploy all stacks (creates S3 bucket, CloudFront, RDS, ECS, etc.):
 ```powershell
+# Run from the cdk/ folder where cdk.json lives.
+# Deploy to test:
 cd infrastructure/cdk
-# Same command but with env=prod — creates entirely separate AWS resources
-cdk deploy --all -c env=prod
+npx cdk deploy --all -c env=test
+
+# Deploy to production:
+cd infrastructure/cdk
+npx cdk deploy --all -c env=prod
 ```
 
 ### 3d. Frontend stack (`lib/sdas-frontend-stack.ts`)
@@ -779,33 +782,84 @@ taskDefinition.addContainer('api', {
 
 ---
 
+## Step 4b — Build and Push Docker Images to ECR
+
+> **Do this before running `cdk deploy`.** The CDK backend stack creates ECS services that immediately try to pull Docker images from ECR. If the images don't exist yet the tasks will fail with `CannotPullContainerError` and the stack will roll back.
+
+### Authenticate Docker to ECR
+
+```powershell
+# Log Docker in to your ECR registry (token is valid for 12 hours)
+& 'C:\Program Files\Amazon\AWSCLIV2\aws.exe' ecr get-login-password --region us-east-1 |
+    docker login --username AWS --password-stdin 533267110544.dkr.ecr.us-east-1.amazonaws.com
+```
+
+### Build and push the API image
+
+```powershell
+cd C:\Users\chris\SDAS\SDAS-MONO\sawdust-and-scents
+
+# Build the NestJS API image (Dockerfile is at apps/api/Dockerfile)
+docker build -t 533267110544.dkr.ecr.us-east-1.amazonaws.com/sdas/api:latest -f apps/api/Dockerfile .
+
+# Push to ECR
+docker push 533267110544.dkr.ecr.us-east-1.amazonaws.com/sdas/api:latest
+```
+
+### Build and push the Keycloak image
+
+```powershell
+cd C:\Users\chris\SDAS\SDAS-MONO\sawdust-and-scents\infrastructure\keycloak
+
+# Build the custom Keycloak image (Dockerfile is at infrastructure/keycloak/Dockerfile)
+docker build -t 533267110544.dkr.ecr.us-east-1.amazonaws.com/sdas/keycloak:latest .
+
+# Push to ECR
+docker push 533267110544.dkr.ecr.us-east-1.amazonaws.com/sdas/keycloak:latest
+```
+
+> **IAM note:** `sdas-backend-stack.ts` explicitly calls `secret.grantRead(executionRole)` for every secret injected via `ecs.Secret.fromSecretsManager()`. This is required because `Secret.fromSecretNameV2()` (used for imported secrets) does **not** automatically wire the `secretsmanager:GetSecretValue` permission to the task execution role the way a natively-created secret would. Without these explicit grants the ECS tasks fail at startup with `AccessDeniedException`.
+
+> **Networking note:** The database stack creates the VPC and exposes it as `dbStack.vpc`. The backend stack receives this VPC and passes it to the ECS cluster so all Fargate tasks are placed in the **same** network as the RDS instance. Without sharing the VPC, ECS tasks fail with `No route to host` when connecting to PostgreSQL. The backend stack also adds explicit security group ingress rules (`db.connections.allowFrom(service.connections, Port.tcp(5432))`) for both the Keycloak and API services — without these, the RDS security group blocks all connections even within the same VPC.
+
+---
+
 ## Step 5 — Build and Deploy the Frontend
 
-The Vite build outputs static files to `dist/apps/web`. These get uploaded to S3 and CloudFront cache is invalidated.
+> **Run CDK before building the frontend:** the frontend S3 bucket and CloudFront distribution are created by the frontend CDK stack during deploy. Bootstrapping and deploying CDK must be done before you run the frontend build and upload. See the CDK commands below and run them from `infrastructure/cdk/`.
+
+```powershell
+# One-time (per account/region):
+cd infrastructure/cdk
+npx cdk bootstrap
+
+# Deploy stacks (creates S3 bucket / CloudFront / RDS / ECS, etc.):
+npx cdk deploy --all -c env=test
+```
+
+The Vite build outputs static files to `apps/dist/web`. These get uploaded to S3 and CloudFront cache is invalidated.
 
 ### Build
 
 ```bash
 # Run the Nx production build for the web app
 # --configuration=production enables Vite's production mode: minification, tree-shaking, etc.
-# Output goes to dist/apps/web/ (index.html + hashed JS/CSS bundles + public assets)
+# Output goes to apps/dist/web/ (index.html + hashed JS/CSS bundles + public assets)
 npx nx build web --configuration=production
 ```
 
-This produces `dist/apps/web/` with `index.html`, JS bundles, and assets.
+This produces `apps/dist/web/` with `index.html`, JS bundles, and assets.
 
 ### Deploy to S3 + invalidate CloudFront
 
+> IMPORTANT: The S3 bucket (e.g. `sdas-test-frontend`) is created by the frontend CDK stack during `cdk deploy`. Run the CDK bootstrap and `npx cdk deploy` steps above first — you cannot `aws s3 sync` to a bucket that doesn't yet exist.
+
 ```bash
-# Upload the built files to the S3 bucket
-# aws s3 sync only uploads files that changed (compares checksums) — fast for incremental deploys
-# dist/apps/web/ is the local source directory
-# s3://sdas-test-frontend is the destination bucket
-# --delete removes files from S3 that no longer exist locally (keeps the bucket in sync)
-aws s3 sync dist/apps/web/ s3://sdas-test-frontend --delete
+# Example post-deploy sync (run after you've bootstrapped and deployed CDK):
+# Use an absolute path from your workstation so the command runs in the repo root
+cd C:\Users\chris\SDAS\SDAS-MONO\sawdust-and-scents && aws s3 sync apps/dist/web/ s3://sdas-test-frontend --delete
 
 # Tell CloudFront to clear its cached copies of all files
-# Without this, users may see the old version for up to 24 hours (the default TTL)
 # --distribution-id is the CloudFront distribution ID from the CDK output (e.g. E1234ABCDEF)
 # --paths "/*" invalidates every cached file in the distribution
 aws cloudfront create-invalidation --distribution-id <your-distribution-id> --paths "/*"
@@ -966,7 +1020,7 @@ jobs:
       # --delete ensures files removed from the build don't linger in S3
       - name: Upload to S3
         run: |
-          aws s3 sync dist/apps/web/ s3://${{ secrets.TEST_S3_BUCKET }} --delete
+          aws s3 sync apps/dist/web/ s3://${{ secrets.TEST_S3_BUCKET }} --delete
 
       # Bust the CloudFront cache so users immediately see the new version
       # Without this, CloudFront serves cached files for up to 24 hours
@@ -1138,7 +1192,7 @@ new cloudwatch.Alarm(this, 'ApiCpuAlarm', {
 - [ ] Secrets stored in AWS Secrets Manager (`sdas/test/*` and `sdas/prod/*`)
 - [ ] `sdas-realm.json` exported from local Keycloak and saved to `infrastructure/keycloak/`
 - [ ] GitHub Secrets configured in repo settings
-- [ ] CDK bootstrapped (run from `infrastructure/cdk/`): `cdk bootstrap aws://<account>/<region>`
+- [ ] CDK bootstrapped (run from `infrastructure/cdk/`): `npx cdk bootstrap aws://<account>/<region>`
   - This creates a staging S3 bucket and IAM roles CDK needs to deploy stacks
 
 ### Test environment deploy
@@ -1148,7 +1202,7 @@ cd infrastructure/cdk
 # Deploy all four stacks to the test environment
 # CDK compares the desired state (your TypeScript) against the current AWS state
 # and applies only the differences — safe to run repeatedly
-cdk deploy --all -c env=test
+npx cdk deploy --all -c env=test
 ```
 
 ### Production environment deploy
@@ -1156,8 +1210,8 @@ cdk deploy --all -c env=test
 ```powershell
 cd infrastructure/cdk
 # Same command as test but targets production resources
-# Consider running cdk diff -c env=prod first to preview changes before applying
-cdk deploy --all -c env=prod
+# Consider running npx cdk diff -c env=prod first to preview changes before applying
+npx cdk deploy --all -c env=prod
 ```
 
 ### Post-deploy verification

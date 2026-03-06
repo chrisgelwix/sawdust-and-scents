@@ -29,7 +29,7 @@ RUN --mount=type=cache,target=/root/.npm \
 COPY . .
 #Run the Nx production build for the API
 #--configuration=production enables optimisations like tree-shaking and minification
-RUN npx nx build api --configuration=production
+RUN npx nx build api --configuration=production --skip-nx-cache
 
 
 # ================================================================

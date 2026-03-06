@@ -24,8 +24,16 @@ const awsEnv = {
 const dbStack = new SdasDatabaseStack(app, `Sdas-${envName}-Database`, { env: awsEnv, envName})
 const dnsStack = new SdasDnsStack(app, `Sdas-${envName}-Dns`, { env: awsEnv, envName })
 
-// beStack receives dbStack.cluster so it knows the DB endpoint without hardcoding
-const beStack = new SdasBackendStack(app, `Sdas-${envName}-Backend`, { env: awsEnv, envName, db: dbStack.cluster });
+// beStack receives dbStack.cluster (PostgreSQL endpoint), dbStack.docdbCluster (MongoDB endpoint),
+// and dbStack.vpc (shared network).  All three must share the same VPC so ECS tasks can reach
+// both databases without any internet routing.
+const beStack = new SdasBackendStack(app, `Sdas-${envName}-Backend`, {
+    env: awsEnv,
+    envName,
+    db:          dbStack.cluster,
+    docdbCluster: dbStack.docdbCluster,
+    vpc:         dbStack.vpc,
+});
 
 // Frontend receives dnsStack.hostedZone to create Route 53 A records and validate the SSL cert
 new SdasFrontendStack(app, `Sdas-${envName}-FrontEnd`, { env: awsEnv, envName, hostedZone: dnsStack.hostedZone });
