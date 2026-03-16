@@ -8,6 +8,8 @@ import * as docdb from 'aws-cdk-lib/aws-docdb'; // DocumentDB cluster type (for 
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager'; // Secrets Manager lookups
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2'; // ALB listener rules
 import * as iam from 'aws-cdk-lib/aws-iam'; // IAM for SES permissions
+import * as acm from 'aws-cdk-lib/aws-certificatemanager'; // SSL/TLS certificates for ALBs
+import * as route53 from 'aws-cdk-lib/aws-route53'; // Hosted zone lookup for cert DNS validation
 import { Construct } from 'constructs';
 
 // Props this stack expects from bin/sdas.ts
@@ -36,6 +38,18 @@ export class SdasBackendStack extends cdk.Stack {
         const cluster = new ecs.Cluster(this, 'Cluster', {
             clusterName: `sdas-${envName}`, // e.g. sdas-test, sdas-prod
             vpc, // shared VPC — without this CDK creates a separate VPC and ECS can't reach RDS
+        });
+
+        // -- HTTPS Certificate --
+        // A wildcard cert covers *.sawdustandscents.com — one cert for all subdomains.
+        // DNS validation is automatic because Route 53 manages the zone.
+        // The frontend (CloudFront) has its own cert; this one is for the ALBs.
+        const hostedZone = route53.HostedZone.fromLookup(this, 'Zone', {
+            domainName: 'sawdustandscents.com',
+        });
+        const backendCert = new acm.Certificate(this, 'BackendCert', {
+            domainName: '*.sawdustandscents.com',
+            validation: acm.CertificateValidation.fromDns(hostedZone),
         });
 
         // -- Secrets Management --
@@ -91,15 +105,21 @@ export class SdasBackendStack extends cdk.Stack {
                         KC_DB: 'postgres',
                         // JDBC connection string using the RDS endpoint CDK resolved for us
                         KC_DB_URL: `jdbc:postgresql://${db.dbInstanceEndpointAddress}/keycloak`,
-                        // The public hostname Keycloak uses when building redirect URIs
-                        KC_HOSTNAME: authDomain,
+                        // The public hostname Keycloak uses when building redirect URIs.
+                        // Must be a full URL (with https://) in Keycloak 26.x — a bare hostname
+                        // produces "non-URL hostname" warnings and can cause health-check failures
+                        // because Keycloak defaults to an insecure context for response URLs.
+                        KC_HOSTNAME: `https://${authDomain}`,
                         // Admin username — not a secret, just a well-known identifier
                         // The password is the actual secret, injected below via Secrets Manager
                         KEYCLOAK_ADMIN: 'admin',
                         // ALB terminates TLS and forwards plain HTTP to Keycloak on port 8080.
-                        // KC_PROXY=edge tells Keycloak to trust X-Forwarded-Proto from the ALB
-                        // so redirect URIs are built with https:// instead of http://.
-                        KC_PROXY: 'edge',
+                        // Keycloak 24+ deprecated KC_PROXY=edge in favour of two separate flags:
+                        //   KC_PROXY_HEADERS=xforwarded  — trust X-Forwarded-Proto/Host from the ALB
+                        //   KC_HTTP_ENABLED=true          — allow plain HTTP internally (ALB→container)
+                        // Without KC_PROXY_HEADERS, Keycloak generates http:// resource URLs even
+                        // though the browser reaches it over https://, causing Mixed-Content errors.
+                        KC_PROXY_HEADERS: 'xforwarded',
                         KC_HTTP_ENABLED: 'true',
                         // Allow Keycloak to respond to requests at the ALB's internal DNS name
                         // (used by health checks) as well as the public hostname above.
@@ -121,9 +141,13 @@ export class SdasBackendStack extends cdk.Stack {
                 // 256 CPU units = 0.25 vCPU; 512 MB RAM — sufficient for Keycloak under low load
                 cpu:    512,
                 memoryLimitMiB: 1024,
-                // test: plain HTTP on 80 (no cert needed); prod: HTTPS on 443 (requires ACM cert on the ALB)
-                listenerPort: envName === 'prod' ? 443 : 80,
+                // HTTPS on 443 for both test and prod — required because the frontend is served
+                // over HTTPS (CloudFront) and browsers block mixed-content HTTP requests.
+                certificate: backendCert,
+                protocol: elbv2.ApplicationProtocol.HTTPS,
+                listenerPort: 443,
                 publicLoadBalancer: true,
+                enableExecuteCommand: true,
             }
         );
 
@@ -138,10 +162,13 @@ export class SdasBackendStack extends cdk.Stack {
                     containerPort: 3000, // NestJS default port
                     environment: {
                         // Non-sensitive config is fine in environment (visible in task definition)
-                        KEYCLOAK_URL:      envName === 'prod' ? `https://${authDomain}` : `http://${authDomain}`,  // URL of the Keycloak service
+                        KEYCLOAK_URL:      `https://${authDomain}`,  // always HTTPS — ALBs now have ACM certs
                         KEYCLOAK_REALM:    'sdas-realm',             // realm name
-                        KEYCLOAK_CLIENT_ID: 'api-client',            // Keycloak client identifier
-                        NODE_ENV:          'production',             // disables dev-only NestJS features
+                        KEYCLOAK_CLIENT_ID: 'sdas-api',              // Keycloak client identifier — must match the clientId in sdas-realm.json
+                        // 'test' (not 'production') so TypeORM synchronize evaluates to true for
+                        // this environment — auto-creates the 5 entity tables on a fresh RDS DB.
+                        // database.module.ts: synchronize: config.get('NODE_ENV') !== 'production'
+                        NODE_ENV: envName === 'prod' ? 'production' : 'test',
                         // PostgreSQL
                         POSTGRES_HOST: db.dbInstanceEndpointAddress, // RDS hostname
                         POSTGRES_PORT: db.dbInstanceEndpointPort,    // RDS port (5432)
@@ -153,6 +180,9 @@ export class SdasBackendStack extends cdk.Stack {
                         MONGO_HOST: docdbCluster.clusterEndpoint.hostname,
                         MONGO_PORT: docdbCluster.clusterEndpoint.portAsString(),
                         MONGO_DB:   'sawdust_scents',
+                        // Keycloak admin — needed by the /api/auth/register endpoint to
+                        // create users via the Keycloak Admin REST API
+                        KEYCLOAK_ADMIN: 'admin',
                         // Email — AWS SES is used; no API key needed. The task role has ses:SendEmail.
                         // Both addresses must be verified in SES (or the domain must be verified).
                         // In SES sandbox mode (default) the TO address must also be verified.
@@ -162,19 +192,23 @@ export class SdasBackendStack extends cdk.Stack {
                     },
                     secrets: {
                         // Sensitive values injected at runtime from Secrets Manager
-                        POSTGRES_USER:         ecs.Secret.fromSecretsManager(dbSecret,            'username'),
-                        POSTGRES_PASSWORD:     ecs.Secret.fromSecretsManager(dbSecret,            'password'),
-                        KEYCLOAK_CLIENT_SECRET: ecs.Secret.fromSecretsManager(keycloakClientSecret),
+                        POSTGRES_USER:           ecs.Secret.fromSecretsManager(dbSecret,              'username'),
+                        POSTGRES_PASSWORD:       ecs.Secret.fromSecretsManager(dbSecret,              'password'),
+                        KEYCLOAK_CLIENT_SECRET:  ecs.Secret.fromSecretsManager(keycloakClientSecret),
+                        // Keycloak admin password — needed by /api/auth/register to call the Admin REST API
+                        KEYCLOAK_ADMIN_PASSWORD: ecs.Secret.fromSecretsManager(keycloakAdminSecret),
                         // DocumentDB credentials — CDK auto-generates these and stores them in Secrets Manager
-                        MONGO_USER:            ecs.Secret.fromSecretsManager(docdbCluster.secret!, 'username'),
-                        MONGO_PASSWORD:        ecs.Secret.fromSecretsManager(docdbCluster.secret!, 'password'),
+                        MONGO_USER:              ecs.Secret.fromSecretsManager(docdbCluster.secret!, 'username'),
+                        MONGO_PASSWORD:          ecs.Secret.fromSecretsManager(docdbCluster.secret!, 'password'),
                     },
                 },
                     desiredCount: envName === 'prod' ? 2 : 1,
                     cpu:    256,
                     memoryLimitMiB: 512,
-                    // test: plain HTTP on 80 (no cert needed); prod: HTTPS on 443 (requires ACM cert on the ALB)
-                    listenerPort: envName === 'prod' ? 443 : 80,
+                    // HTTPS on 443 for both test and prod — same reason as Keycloak above
+                    certificate: backendCert,
+                    protocol: elbv2.ApplicationProtocol.HTTPS,
+                    listenerPort: 443,
                     publicLoadBalancer: true,
                 },
             
@@ -187,7 +221,10 @@ export class SdasBackendStack extends cdk.Stack {
         //     GET /realms/master returns 200 JSON when Keycloak is fully started
         keycloakService.targetGroup.configureHealthCheck({
             path: '/realms/master',
-            healthyHttpCodes: '200',
+            // Accept 301/302 in addition to 200: in production mode with KC_HOSTNAME set to an
+            // https:// URL, Keycloak may redirect the ALB's plain-HTTP health-check request.
+            // A redirect proves the container is alive and responding — that's all we need here.
+            healthyHttpCodes: '200,301,302',
         });
         apiService.targetGroup.configureHealthCheck({
             path: '/api',
@@ -195,13 +232,13 @@ export class SdasBackendStack extends cdk.Stack {
         });
 
         // -- Health check grace period --
-        // NestJS needs ~3s to start + time for MongoDB/DocumentDB to accept the first connection.
-        // Without a grace period the ALB can mark the task unhealthy before the HTTP server is up.
-        // 120 seconds gives the app enough runway on cold start without failing legitimate outages.
+        // Keycloak uses a pre-built image (kc.sh build in Dockerfile) so cold-start is ~15s.
+        // 300s is still generous — it handles slow DB connections or any transient delays.
+        // API (NestJS) starts in ~3s; 120s is more than enough there.
         const cfnApiService = apiService.service.node.defaultChild as cdk.CfnResource;
         cfnApiService.addPropertyOverride('HealthCheckGracePeriodSeconds', 120);
         const cfnKeycloakService = keycloakService.service.node.defaultChild as cdk.CfnResource;
-        cfnKeycloakService.addPropertyOverride('HealthCheckGracePeriodSeconds', 120);
+        cfnKeycloakService.addPropertyOverride('HealthCheckGracePeriodSeconds', 300);
 
         // -- SES: allow the API task role to send email via AWS SES --
         // The API uses SESv2Client which signs requests using the ECS task role credentials.
@@ -230,6 +267,8 @@ export class SdasBackendStack extends cdk.Stack {
         keycloakAdminSecret.grantRead(keycloakService.taskDefinition.executionRole!);
         dbSecret.grantRead(keycloakService.taskDefinition.executionRole!);
         keycloakClientSecret.grantRead(apiService.taskDefinition.executionRole!);
+        // keycloakAdminSecret is also used by the API (KEYCLOAK_ADMIN_PASSWORD for /api/auth/register)
+        keycloakAdminSecret.grantRead(apiService.taskDefinition.executionRole!);
         dbSecret.grantRead(apiService.taskDefinition.executionRole!);
         // DocumentDB credentials — must be readable by the API task execution role
         docdbCluster.secret!.grantRead(apiService.taskDefinition.executionRole!);

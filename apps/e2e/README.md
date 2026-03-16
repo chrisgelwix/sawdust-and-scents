@@ -383,9 +383,7 @@ nx e2e --coverage
 # View HTML report
 open coverage/e2e/index.html  # macOS
 start coverage\e2e\index.html  # Windows
-```
-
-### Coverage Goals
+```### Coverage Goals
 - **Unit Tests**: 80%+ coverage (co-located with source)
 - **Integration Tests**: Key workflows covered
 - **API Tests**: All endpoints tested

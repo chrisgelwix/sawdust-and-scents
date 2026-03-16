@@ -1,6 +1,7 @@
 {
   "name": "web",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "root": "apps/web",
   "sourceRoot": "apps/web/src",
   "projectType": "application",
   "tags": ["scope:web", "type:app"],

@@ -71,3 +71,6 @@ vite.config.*.timestamp*
 # Documentation
 docs/BusinessPlans/
 docs/DevelopmentSteps/
+
+
+storybook-static
