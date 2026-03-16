@@ -58,6 +58,7 @@ export class SdasDatabaseStack extends cdk.Stack {
             securityGroups: [dbSecurityGroup],
             multiAz: envName === 'prod',
             deletionProtection: envName === 'prod',
+            removalPolicy: envName === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
             databaseName: 'keycloak', // initial DB; Keycloak owns this database
             credentials: rds.Credentials.fromGeneratedSecret('keycloak'),
         });

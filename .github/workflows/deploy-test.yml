@@ -1,0 +1,112 @@
+name: Deploy to Test
+
+on:
+    push:
+        branches: [main]
+
+# Shared environment variables available to all jobs in this workflow
+env: 
+    AWS_REGION: ${{ secrets.AWS_REGION }}
+
+jobs:
+    # Job 1: run all tests before any deployment happens
+    test:
+        runs-on: ubuntu-latest # use a fresh Ubuntu VM provided by GitHub
+        steps:
+            - uses: actions/checkout@v4 # check out the repo code onto the runner
+            # Set up Node.js 20 — matches the version used in our Dockerfile and local dev
+            - name: Setup Node
+              uses: actions/setup-node@v4
+              with: 
+                node-version: 20
+                cache: npm # cache node_modules between runs to speed up the job
+
+            - run: npm ci # install exact dependencies from package-lock.json
+            # Run all Nx unit tests across every project in the monorepo
+            # --ci flag disables interactive output and exits with a non-zero code on failure
+            - name: Run unit tests
+              run: npx nx run-many --target=test --all --ci
+
+    # Job 2: build the Docker image and deploy the API to ECS
+    deploy-api:
+        needs: test # only runs if the test job passed - gates deployment on green tests
+        runs-on: ubuntu-latest
+        steps: 
+            - uses: actions/checkout@v4
+            - run: npm ci
+            # Configure AWS credentials from GitHub Secrets so all subsequent aws CLI commands work
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v4
+              with: 
+                aws-access-key-id: $ {{ secrets.AWS_ACCESS_KEY_ID }}
+                aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
+                aws-region: ${{ env.AWS_REGION }}
+            # Log Docker into ECR — required before docker push will work
+            # Outputs a registry URL used in subsequent steps
+            - name: Login to ECR
+              id: login-ecr
+              uses: aws-actions/amazon-ecr-login@v2
+
+            # Build the API Docker image and push it to ECR with two tags:
+            # 1. The git commit SHA — provides an immutable, traceable tag for every build
+            # 2. 'latest' — convenient reference for the most recent test image
+            - name: Build and push API image
+              run: | 
+                IMAGE_TAG=${{ github.sha }}           # unique tag = the git commit hash
+                REPO=${{ secrets.TEST_ECR_API_REPO }} # ECR repository URI from GitHub Secrets
+
+                docker build -f apps/api/Dockerfile -t $REPO:$IMAGE_TAG .  # build with commit SHA tag
+                docker push $REPO:$IMAGE_TAG # push SHA-tagged image
+
+                docker tag $REPO:$IMAGE_TAG $REPO:latest # also tag as latest for test env convenience
+                docker push $REPO:latest # push the latest tag
+
+            # Tell ECS to replace running containers with the new image
+            # --force-new-deployment pulls the new 'latest' image even if the task definition hasn't changed
+            - name: Deploy to ECS
+              run: |
+                # --cluster is the ECS cluster name (created by CDK)
+                # --service is the ECS service name (created by CDK)
+                # --force-new-deployment triggers a rolling replacement of running tasks
+                aws ecs update-service \
+                  --cluster sdas-test \
+                  --service sdas-test-api \
+                  --force-new-deployment
+            
+    # Job 3: build the React app and deploy to S3 + CloudFront
+    deploy-frontend: 
+        needs: test # also depends on tests passing
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - run: npm ci
+
+            # Build the React app with environment variables pointing at the test environment
+            # These are baked into the JS bundle by Vite at build time
+            - name: Build frontend 
+              env: 
+                KEYCLOAK_URL: ${{ secrets.TEST_KEYCLOAK_URL }} # test Keycloak server
+                KEYCLOAK_REALM: sdas-realm # realm name (same in both envs)
+                KEYCLOAK_WEB_CLIENT_ID: sdas-web # public client ID
+                API_BASE_URL : ${{ secrets.TEST_API_BASE_URL }} # test API URL
+              run: npx nx build web --configuration=production # Vite production build
+
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v4
+              with: 
+                aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                aws-region: ${{ env.AWS_REGION }}
+
+            # Upload the built files to the test S3 bucket
+            # --delete ensures files removed from the build don't linger in S3
+            - name: Upload to S3
+              run: | 
+                aws s3 sync apps/dist/web/ s3://${{ secrets.TEST_S3_BUCKET }} --delete
+
+            # Bust the CloudFront cache so users immediately see the new version
+            # Without this, CloudFront serves cached files for up to 24 hours
+            - name: Invalidate CloudFront
+              run: | 
+                # --paths "/*" invalidates every cached file so users see the new version immediately
+                aws cloudfront create-invalidation --distribution-id ${{ secrets.TEST_CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"

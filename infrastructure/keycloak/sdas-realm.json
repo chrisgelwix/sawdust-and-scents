@@ -735,10 +735,14 @@
       "clientAuthenticatorType": "client-secret",
       "secret": "**********",
       "redirectUris": [
-        "http://localhost:4200/*"
+        "http://localhost:4200/*",
+        "https://test.sawdustandscents.com/*",
+        "https://sawdustandscents.com/*"
       ],
       "webOrigins": [
-        "*http://localhost:4200"
+        "http://localhost:4200",
+        "https://test.sawdustandscents.com",
+        "https://sawdustandscents.com"
       ],
       "notBefore": 0,
       "bearerOnly": false,
@@ -844,10 +848,14 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "http://localhost:4200/*"
+        "http://localhost:4200/*",
+        "https://test.sawdustandscents.com/*",
+        "https://sawdustandscents.com/*"
       ],
       "webOrigins": [
-        "http://localhost:4200"
+        "http://localhost:4200",
+        "https://test.sawdustandscents.com",
+        "https://sawdustandscents.com"
       ],
       "notBefore": 0,
       "bearerOnly": false,

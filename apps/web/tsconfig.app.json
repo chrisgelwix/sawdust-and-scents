@@ -9,6 +9,7 @@
       "vite/client"
     ]
   },
+  
   "exclude": [
     "src/**/*.spec.ts",
     "src/**/*.test.ts",
@@ -19,12 +20,11 @@
     "src/**/*.spec.jsx",
     "src/**/*.test.jsx",
     "jest.config.ts",
-    "jest.config.cts"
+    "jest.config.cts",
+    "**/*.stories.ts",
+    "**/*.stories.js",
+    "**/*.stories.jsx",
+    "**/*.stories.tsx"
   ],
-  "include": [
-    "src/**/*.js",
-    "src/**/*.jsx",
-    "src/**/*.ts",
-    "src/**/*.tsx"
-  ]
+  "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"]
 }

@@ -1,0 +1,89 @@
+# Production deploys are intentionally separate from test deploys
+# Trigger: only run when a version tag is pushed (e.g. v1.0.0, v2.3.1)
+name: Deploy to Production
+# Trigger: only run when a version tag is pushed (e.g. v1.0.0, v2.3.1)
+# This means you control exactly when production gets updated
+on: 
+  push: 
+    tags: 
+      - 'v*'   # matches v1.0.0, v1.2.3, v2.0.0-beta, etc.
+
+jobs:
+  deploy-api:
+    runs-on: ubuntu-lates
+    steps: 
+      # Same steps as deploy-test.yml but referencing PROD_* secrets
+      # and targeting cluster: sdas-prod, service: sdas-prod-api
+      # (Copy the deploy-test jobs and swap TEST_ prefixes to PROD_)
+      - uses: actions/checkout@v4
+      - run: npm ci
+      # Configure AWS credentials from GitHub Secrets so all subsequent aws CLI commands work
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with: 
+            aws-access-key-id: $ {{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
+            aws-region: ${{ env.AWS_REGION }}
+        # Log Docker into ECR — required before docker push will work
+        # Outputs a registry URL used in subsequent steps
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+        # Build the API Docker image and push it to ECR with two tags:
+        # 1. The git commit SHA — provides an immutable, traceable tag for every build
+        # 2. 'latest' — convenient reference for the most recent test image
+      - name: Build and push API image
+        run: | 
+          IMAGE_TAG=${{ github.sha }}           # unique tag = the git commit hash
+          REPO=${{ secrets.PROD_ECR_API_REPO }} # ECR repository URI from GitHub Secrets
+
+          docker build -f apps/api/Dockerfile -t $REPO:$IMAGE_TAG .  # build with commit SHA tag
+          docker push $REPO:$IMAGE_TAG # push SHA-tagged image
+
+          docker tag $REPO:$IMAGE_TAG $REPO:latest # also tag as latest for prod env convenience
+          docker push $REPO:latest # push the latest tag
+
+        # Tell ECS to replace running containers with the new image
+        # --force-new-deployment pulls the new 'latest' image even if the task definition hasn't changed
+      - name: Deploy to ECS
+        run: |
+          # --cluster is the ECS cluster name (created by CDK)
+          # --service is the ECS service name (created by CDK)
+          # --force-new-deployment triggers a rolling replacement of running tasks
+          aws ecs update-service --cluster sdas-prod --service sdas-prod-api --force-new-deployment
+        
+        
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+
+    # Build the React app with environment variables pointing at the test environment
+    # These are baked into the JS bundle by Vite at build time
+      - name: Build frontend 
+        env: 
+          KEYCLOAK_URL: ${{ secrets.PROD_KEYCLOAK_URL }} # prod Keycloak server
+          KEYCLOAK_REALM: sdas-realm # realm name (same in both envs)
+          KEYCLOAK_WEB_CLIENT_ID: sdas-web # public client ID
+          API_BASE_URL : ${{ secrets.PROD_API_BASE_URL }} # prod API URL
+        run: npx nx build web --configuration=production # Vite production build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with: 
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+    # Upload the built files to the test S3 bucket
+    # --delete ensures files removed from the build don't linger in S3
+      - name: Upload to S3
+        run: | 
+            aws s3 sync apps/dist/web/ s3://${{ secrets.PROD_S3_BUCKET }} --delete
+    # Bust the CloudFront cache so users immediately see the new version
+    # Without this, CloudFront serves cached files for up to 24 hours
+      - name: Invalidate CloudFront
+        run: | 
+          # --paths "/*" invalidates every cached file so users see the new version immediately
+          aws cloudfront create-invalidation --distribution-id ${{ secrets.PROD_CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
