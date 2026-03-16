@@ -336,7 +336,7 @@ export class SubscriptionsService {
     count: number,
     preferences: string[]
   ): Promise<any[]> {
-    let candidates: any[] = [];
+    const candidates: any[] = [];
 
     // Try to match preferences first
     if (preferences.length > 0) {
