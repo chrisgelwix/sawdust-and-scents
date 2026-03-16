@@ -49,7 +49,7 @@ export class UsersService {
     // Ensure the user exists before updating
     await this.findOrCreateByKeycloakId(keycloakId);
     await this.userRepository.update({ keycloakId }, updateData);
-    return (await this.findByKeycloakId(keycloakId))!;
+    return (await this.findByKeycloakId(keycloakId)) ?? new User();
   }
 
   async createGuest(data: {
