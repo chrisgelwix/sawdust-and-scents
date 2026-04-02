@@ -20,7 +20,10 @@ import { ConfigService } from '@nestjs/config';
         database: config.get<string>('POSTGRES_DB'),
         autoLoadEntities: true,
         synchronize: config.get<string>('NODE_ENV') !== 'production',
-        ssl: { rejectUnauthorized: false },
+        // Local Postgres typically runs without SSL; RDS commonly requires it.
+        ssl: config.get<string>('NODE_ENV') === 'production'
+          ? { rejectUnauthorized: false }
+          : undefined,
       }),
     }),
 
@@ -41,20 +44,40 @@ import { ConfigService } from '@nestjs/config';
     MongooseModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const user     = config.getOrThrow<string>('MONGO_USER');
-        const password = config.getOrThrow<string>('MONGO_PASSWORD');
+        const explicitUri = (config.get<string>('MONGO_URI') ?? '').trim();
+        if (explicitUri) return { uri: explicitUri };
+
+        const user = (config.getOrThrow<string>('MONGO_USER') ?? '').trim();
+        const password = (config.getOrThrow<string>('MONGO_PASSWORD') ?? '').trim();
         const host     = config.getOrThrow<string>('MONGO_HOST');
         const port     = config.get<string>('MONGO_PORT') ?? '27017';
         const db       = config.get<string>('MONGO_DB')   ?? 'sawdust_scents';
 
-        const uri = [
-          `mongodb://${user}:${encodeURIComponent(password)}`,
-          `@${host}:${port}/${db}`,
-          `?replicaSet=rs0`,
-          `&readPreference=secondaryPreferred`,
-          `&retryWrites=false`,
-          `&authMechanism=SCRAM-SHA-1`,
-        ].join('');
+        if (!user || !password) {
+          throw new Error(
+            'MongoDB credentials missing. Set MONGO_USER and MONGO_PASSWORD (or provide MONGO_URI).'
+          );
+        }
+
+        const isDocumentDb =
+          (config.get<string>('MONGO_DOCUMENTDB') ?? '').toLowerCase() === 'true' ||
+          (config.get<string>('NODE_ENV') ?? '').toLowerCase() === 'production';
+
+        const query: string[] = [];
+        // Typical local Mongo auth uses authSource=admin; DocumentDB does as well.
+        query.push('authSource=admin');
+
+        if (isDocumentDb) {
+          query.push('replicaSet=rs0');
+          query.push('readPreference=secondaryPreferred');
+          query.push('retryWrites=false');
+          query.push('authMechanism=SCRAM-SHA-1');
+        }
+
+        const uri =
+          `mongodb://${user}:${encodeURIComponent(password)}` +
+          `@${host}:${port}/${db}` +
+          `?${query.join('&')}`;
 
         return { uri };
       },

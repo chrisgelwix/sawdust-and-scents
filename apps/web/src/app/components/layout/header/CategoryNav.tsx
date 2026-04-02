@@ -7,14 +7,16 @@ export const CategoryNav = () => {
     const { pathname, search } = useLocation();
     const currentPath = pathname + search;
 
+    // These values must align with the `category` strings stored in the DB.
+    // (You can always confirm via GET `/api/products/categories`.)
     const CATEGORIES = [
-        { label: t('categories.woodSigns'),    href: '/products?category=wood-signs' },
-        { label: t('categories.candles'),      href: '/products?category=candles' },
-        { label: t('categories.giftSets'),     href: '/products?category=gift-sets' },
-        { label: t('categories.customOrders'), href: '/products?category=custom' },
-        { label: t('categories.homeDecor'),    href: '/products?category=home-decor' },
-        { label: t('categories.newArrivals'),  href: '/products?category=new-arrivals' },
-        { label: t('categories.sale'),         href: '/products?category=sale' },
+        { label: t('categories.woodSigns'),    href: '/products?category=Woodworking' },
+        { label: t('categories.candles'),      href: '/products?category=Candles' },
+        // Keep these wired up for later once the DB includes them:
+        { label: t('categories.giftSets'),     href: '/products?category=Gift%20Sets' },
+        { label: t('categories.customOrders'), href: '/products?category=Custom%20Orders' },
+        { label: t('categories.homeDecor'),    href: '/products?category=Home%20Decor' },
+        { label: t('categories.sale'),         href: '/products?category=Sale' },
     ];
 
     return (

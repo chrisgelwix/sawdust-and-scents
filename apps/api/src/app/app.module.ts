@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from '../modules/auth/auth.module';
@@ -24,7 +24,21 @@ import { ContactModule } from '../modules/contact/contact.module';
       isGlobal: true,
       envFilePath: '.env.local',
     }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 3 }]),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const env = (config.get<string>('NODE_ENV') ?? 'development').toLowerCase();
+        const isProd = env === 'production';
+
+        // 3 req/min was blocking basic UI navigation (category clicks, retries, etc.).
+        return [
+          {
+            ttl: 60_000,
+            limit: isProd ? 30 : 300,
+          },
+        ];
+      },
+    }),
     CommonModule,
     AuthModule,
     ProductsModule,

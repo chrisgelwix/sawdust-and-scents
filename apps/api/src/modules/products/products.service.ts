@@ -57,9 +57,18 @@ export class ProductsService {
   }
 
   async findByCategory(category: string): Promise<Product[]> {
-    return this.productModel
-      .find({ category, isActive: true })
-      .exec();
+    const raw = (category ?? '').trim();
+    if (!raw) return [];
+
+    // Allow matching both slugified and human-readable categories.
+    // Example: "wood-signs" should match "wood signs", "Wood Signs", "wood-signs", etc.
+    const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const slugFlexible = escapeRegex(raw).replace(/\\-+/g, '[-\\s]+');
+    const spacedFlexible = escapeRegex(raw.replace(/-+/g, ' ')).replace(/\s+/g, '[-\\s]+');
+    const pattern = `^(?:${slugFlexible}|${spacedFlexible})$`;
+    const categoryRegex = new RegExp(pattern, 'i');
+
+    return this.productModel.find({ category: categoryRegex, isActive: true }).exec();
   }
 
   async search(query: string): Promise<Product[]> {

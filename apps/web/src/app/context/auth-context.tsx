@@ -32,7 +32,9 @@ const AuthContext = createContext<AuthContextType>({
     },
     loginWithProvider: () => { throw new Error('Not implemented'); },
     loginModalOpen: false,
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     openLoginModal: () => {},
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     closeLoginModal: () => {},
 });
 

@@ -8,7 +8,7 @@ module.exports = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   coverageDirectory: '../../coverage/web',
   clearMocks: true,
-  setupFilesAfterEnv: ['@testing-library/jest-dom'],
+  setupFilesAfterEnv: ['@testing-library/jest-dom', '<rootDir>/src/setupTests.ts'],
   moduleNameMapper: {
     // Route react-i18next imports to our test mock so every test
     // gets real English strings without needing to bootstrap i18next.

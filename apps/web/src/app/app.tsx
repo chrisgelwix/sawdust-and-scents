@@ -14,6 +14,9 @@ import { ShippingPage }      from './pages/ShippingPage';
 import { ReturnsPage }       from './pages/ReturnsPage';
 import { ContactPage }       from './pages/ContactPage';
 import { ScrollToTop }       from './components/layout/ScrollToTop';
+import { ProductGrid } from './pages/Products/ProductsGrid';
+import { ProductDetail } from './pages/Products/ProductDetail';
+import { HomePage } from './pages/HomePage';
 
 export function App() {
   return (
@@ -26,8 +29,9 @@ export function App() {
         {/* Pages manage their own padding — no global px/py here */}
         <Box component="main" sx={{ flex: 1 }}>
           <Routes>
-            <Route path="/"            element={<Box sx={{ px: 3, py: 4 }}>Welcome to Sawdust &amp; Scents!</Box>} />
-            <Route path="/products"    element={<Box sx={{ px: 3, py: 4 }}>Product Catalog</Box>} />
+            <Route path="/"            element={<HomePage />} />
+            <Route path="/products"    element={<ProductGrid />} />
+            <Route path="/products/:id" element={<ProductDetail />} />
             <Route path="/cart"        element={<Box sx={{ px: 3, py: 4 }}>Shopping Cart</Box>} />
             <Route path="/rewards"     element={<Box sx={{ px: 3, py: 4 }}>Rewards Program</Box>} />
 

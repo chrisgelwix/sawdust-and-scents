@@ -7,7 +7,7 @@ import { PageWrapper } from '../components/layout/PageWrapper';
 const SECTION_URLS: Record<string, string[]> = {
     Shop:             ['/products', '/products?category=wood-signs', '/products?category=candles',
                        '/products?category=gift-sets', '/products?category=custom',
-                       '/products?category=home-decor', '/products?category=new-arrivals', '/products?category=sale'],
+                       '/products?category=home-decor', '/products?category=sale'],
     Account:          ['/', '/cart', '/rewards'],
     Company:          ['/about', '/contact', '/accessibility'],
     'Customer Support': ['/help'],

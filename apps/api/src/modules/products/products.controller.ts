@@ -9,6 +9,7 @@ import {
   Query,
   NotFoundException,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import {
   ApiTags,
   ApiOperation,
@@ -29,6 +30,7 @@ export class ProductsController {
   // ─── Public Endpoints ───
 
   @Public()
+  @SkipThrottle()
   @Get()
   @ApiOperation({ summary: 'Get all products' })
   @ApiResponse({ status: 200, description: 'List of products' })
@@ -37,6 +39,7 @@ export class ProductsController {
   }
 
   @Public()
+  @SkipThrottle()
   @Get('search')
   @ApiOperation({ summary: 'Search products by name, description or category' })
   @ApiQuery({ name: 'q', required: true, description: 'Search query' })
@@ -46,6 +49,7 @@ export class ProductsController {
   }
 
   @Public()
+  @SkipThrottle()
   @Get('scents')
   @ApiOperation({ summary: 'Get all available scents' })
   @ApiResponse({ status: 200, description: 'List of distinct scent values' })
@@ -54,6 +58,7 @@ export class ProductsController {
   }
 
   @Public()
+  @SkipThrottle()
   @Get('categories')
   @ApiOperation({ summary: 'Get all available categories' })
   @ApiResponse({ status: 200, description: 'List of distinct categories' })
@@ -62,6 +67,7 @@ export class ProductsController {
   }
 
   @Public()
+  @SkipThrottle()
   @Get('scent/:scent')
   @ApiOperation({ summary: 'Get products by scent' })
   @ApiResponse({ status: 200, description: 'Products with the specified scent' })
@@ -70,6 +76,7 @@ export class ProductsController {
   }
 
   @Public()
+  @SkipThrottle()
   @Get('category/:category')
   @ApiOperation({ summary: 'Get products by category' })
   @ApiResponse({ status: 200, description: 'Products in the specified category' })
@@ -78,6 +85,7 @@ export class ProductsController {
   }
 
   @Public()
+  @SkipThrottle()
   @Get(':id')
   @ApiOperation({ summary: 'Get a single product by ID' })
   @ApiResponse({ status: 200, description: 'The product' })

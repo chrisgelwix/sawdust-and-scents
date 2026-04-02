@@ -21,7 +21,11 @@ export interface ProductCardProps {
     imageUrl: string;
     /** Stock availability */
     inStock: boolean;
-    category?: 'candle' | 'sign' | 'decor';
+    category?: string;
+    /** Show the category/type badge (used for Sale grid only) */
+    showCategoryBadge?: boolean;
+    /** When category/type badge is clicked */
+    onCategoryClick?: (category: string) => void;
     /** Callback when add to cart is clicked */
     onAddToCart?: () => void;
     /** Callback when product is clicked */
@@ -39,6 +43,8 @@ export function ProductCard({
     imageUrl,
     inStock,
     category,
+    showCategoryBadge = false,
+    onCategoryClick,
     onAddToCart,
     onViewDetails,
 }: ProductCardProps) {
@@ -84,11 +90,17 @@ export function ProductCard({
                       sx={{ mb: 0 }}>
                         {name}
                       </Typography>
-                      {category && (
+                      {showCategoryBadge && category && (
                         <Chip
                           label={category}
                           size="small"
                           color={getCategoryColor()}
+                          clickable
+                          onClick={() => onCategoryClick?.(category)}
+                          sx={{
+                            cursor: 'pointer',
+                            '&:hover': { filter: 'brightness(0.95)' },
+                          }}
                           />
                       )}
                 </Box>

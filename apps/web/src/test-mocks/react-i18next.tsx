@@ -5,17 +5,25 @@
  * real English strings from the bundled locale JSON — no changes to
  * existing test assertions required.
  */
+import { readFileSync } from 'fs';
+import path from 'path';
 import React from 'react';
 
-import enCommon        from '../../public/locales/en/common.json';
-import enAuth          from '../../public/locales/en/auth.json';
-import enFooter        from '../../public/locales/en/footer.json';
-import enAbout         from '../../public/locales/en/about.json';
-import enHelp          from '../../public/locales/en/help.json';
-import enTerms         from '../../public/locales/en/terms.json';
-import enPrivacy       from '../../public/locales/en/privacy.json';
-import enAccessibility from '../../public/locales/en/accessibility.json';
-import enSitemap       from '../../public/locales/en/sitemap.json';
+function loadPublicJson(relativeToThisFile: string): unknown {
+  const abs = path.resolve(__dirname, relativeToThisFile);
+  return JSON.parse(readFileSync(abs, 'utf-8')) as unknown;
+}
+
+const enCommon = loadPublicJson('../../public/locales/en/common.json');
+const enAuth = loadPublicJson('../../public/locales/en/auth.json');
+const enFooter = loadPublicJson('../../public/locales/en/footer.json');
+const enAbout = loadPublicJson('../../public/locales/en/about.json');
+const enHelp = loadPublicJson('../../public/locales/en/help.json');
+const enTerms = loadPublicJson('../../public/locales/en/terms.json');
+const enPrivacy = loadPublicJson('../../public/locales/en/privacy.json');
+const enAccessibility = loadPublicJson('../../public/locales/en/accessibility.json');
+const enSitemap = loadPublicJson('../../public/locales/en/sitemap.json');
+const enContact = loadPublicJson('../../public/locales/en/contact.json');
 
 // ── Flatten nested JSON to dot-notation keys ──────────────────────────────────
 function flatten(obj: unknown, prefix = ''): Record<string, string> {
@@ -49,6 +57,7 @@ const NS: Record<string, Record<string, string>> = {
   privacy:       flatten(enPrivacy),
   accessibility: flatten(enAccessibility),
   sitemap:       flatten(enSitemap),
+  contact:       flatten(enContact),
 };
 
 // ── t() factory ───────────────────────────────────────────────────────────────
@@ -75,10 +84,10 @@ function makeT(ns: string | string[] = 'common') {
 }
 
 // ── Exports ───────────────────────────────────────────────────────────────────
-export const useTranslation = jest.fn((ns?: string | string[]) => ({
+export const useTranslation = (ns?: string | string[]) => ({
   t: makeT(ns ?? 'common'),
-  i18n: { changeLanguage: jest.fn(), language: 'en' },
-}));
+  i18n: { changeLanguage: () => Promise.resolve(), language: 'en' },
+});
 
 export const Trans = ({
   children,
@@ -98,5 +107,5 @@ export const Trans = ({
 
 export const initReactI18next = {
   type: '3rdParty' as const,
-  init: jest.fn(),
+  init: () => undefined,
 };
