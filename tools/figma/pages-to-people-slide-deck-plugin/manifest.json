@@ -1,0 +1,10 @@
+{
+  "name": "Pages to People – JSON Slide Deck Importer",
+  "id": "pages-to-people-json-slide-deck-importer",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "networkAccess": { "allowedDomains": ["none"] }
+}
+

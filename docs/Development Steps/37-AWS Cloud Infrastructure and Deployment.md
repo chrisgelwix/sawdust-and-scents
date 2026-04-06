@@ -25,10 +25,16 @@ Instead of managing your own database server, AWS provides "Managed" versions th
 Our application will be deployed following the **AWS Well-Architected Framework**:
 
 1.  **Frontend**: Hosted as static files in **S3** and distributed globally via **CloudFront** (CDN).
-2.  **API**: Dockerized NestJS app running on **AWS ECS Fargate** (Serverless containers).
-3.  **Data**: **AWS RDS** for Postgres and **AWS DocumentDB** for MongoDB.
-4.  **Security**: **AWS Secrets Manager** for `.env` variables and **AWS IAM** for permissions.
-5.  **Traffic**: **Application Load Balancer (ALB)** to distribute traffic to our containers.
+2.  **API**: One of two modes:
+    - **Production-grade**: Dockerized NestJS app on **ECS Fargate** behind an **ALB**
+    - **Low-cost**: **Single EC2 instance** running the API container, with **CloudFront terminating TLS**
+3.  **Data**: One of two modes:
+    - **Production-grade**: **RDS** (Postgres) + **DocumentDB** (MongoDB)
+    - **Low-cost**: start with local DBs on the EC2 instance (Docker) or a small **RDS** instance later
+4.  **Security**: **AWS IAM** (instance role / task roles). Use **Secrets Manager** as needed.
+5.  **Traffic**:
+    - Fargate mode uses **ALB**
+    - Low-cost mode uses **CloudFront → EC2 (HTTP origin)** (no ALB)
 
 ---
 
@@ -102,6 +108,19 @@ Your CI/CD pipeline is updated to deploy automatically when code is merged to th
 *   **CDN (Content Delivery Network)**: A system of distributed servers that deliver web content to users based on their geographic location (CloudFront).
 *   **Availability Zone (AZ)**: One or more discrete data centers with redundant power, networking, and connectivity in an AWS Region.
 *   **Terraform**: An open-source tool that allows you to define your infrastructure using a declarative configuration language (HCL).
+
+---
+
+## 6. Cost Notes (what drives the AWS bill)
+
+If you're early-stage / low-traffic, the biggest cost drivers in the production-grade design are:
+
+- **NAT Gateway** (hourly + per-GB)
+- **Application Load Balancer**
+- **Always-on ECS/Fargate tasks**
+- **DocumentDB** (smallest instance sizes are still expensive)
+
+In the low-cost mode we avoid all of the above by using a single EC2 instance and CloudFront for TLS.
 
 
 

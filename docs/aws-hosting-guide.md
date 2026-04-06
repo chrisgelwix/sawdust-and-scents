@@ -24,11 +24,11 @@ This guide walks through hosting the complete Sawdust & Scents platform on AWS w
 | What | AWS Service | Why |
 |---|---|---|
 | Frontend (static SPA) | S3 + CloudFront | Globally distributed, cheap, no server needed |
-| Backend API (NestJS) | ECS Fargate | Serverless containers — no EC2 to manage |
-| Keycloak | ECS Fargate | Same reason; pairs naturally with RDS |
-| Database (PostgreSQL) | RDS PostgreSQL | Managed, automated backups, Multi-AZ for prod |
+| Backend API (NestJS) | ECS Fargate **or** single EC2 | Fargate is production-grade; EC2 is the low-cost option |
+| Keycloak | ECS Fargate (recommended) | Keep managed/auth separate for reliability; low-cost mode can run without Keycloak initially |
+| Database (PostgreSQL) | RDS PostgreSQL (recommended) | Managed, automated backups, Multi-AZ for prod |
 | Container images | ECR (Elastic Container Registry) | Private registry, integrates directly with ECS |
-| Load balancing | Application Load Balancer (ALB) | Routes HTTP/S traffic to API and Keycloak |
+| Load balancing | ALB (Fargate mode) | Routes HTTP/S traffic to API and Keycloak |
 | DNS | Route 53 | Manages `sawdustandscents.com` + subdomains |
 | SSL certificates | ACM (Certificate Manager) | Free, auto-renewing TLS |
 | Secrets | AWS Secrets Manager | DB passwords, Keycloak client secrets, API keys |
@@ -55,6 +55,42 @@ auth.sawdustandscents.com       → PRODUCTION Keycloak  (auth server for live e
 > **Recommendation**: Use a single AWS account with separate VPCs and resource name prefixes (`sdas-test-*` vs `sdas-prod-*`). Alternatively use two separate AWS accounts for stronger isolation — the CDK stack supports both patterns.
 
 ---
+
+## Cost-Optimised Deployment Mode (recommended early-stage)
+
+If your AWS bill is dominated by **NAT Gateway + ALB + ECS/Fargate + DocumentDB**, deploy using the **low-cost architecture**:
+
+- **Frontend**: S3 + CloudFront (unchanged)
+- **Backend API**: **single EC2 instance** running the API container
+- **Auth (Keycloak)**: **same EC2 instance** running Keycloak in Docker
+- **TLS for API**: **CloudFront** in front of EC2 (no ALB)
+- **Uploads**: private S3 bucket
+- **Databases**: **on-instance Postgres + Mongo via Docker** (upgrade to RDS later if needed)
+
+### Deploy command
+
+Use the `arch=lowcost` CDK context flag:
+
+```bash
+cd infrastructure/cdk
+cdk deploy -c env=test -c arch=lowcost
+```
+
+### What this mode intentionally avoids
+
+- NAT Gateway
+- Application Load Balancers
+- ECS/Fargate services
+- DocumentDB
+
+### Cleanup (to reduce the bill)
+
+After you confirm the low-cost stacks are working, destroy the high-cost stacks:
+
+```bash
+cd infrastructure/cdk
+cdk destroy -c env=test Sdas-test-Backend Sdas-test-Database
+```
 
 ## Prerequisites
 

@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pages to People – Import JSON Slide Deck</title>
+    <style>
+      body {
+        font: 12px/1.4 Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        margin: 12px;
+        color: #111827;
+      }
+      textarea {
+        width: 100%;
+        height: 260px;
+        box-sizing: border-box;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+          "Courier New", monospace;
+        font-size: 11px;
+        padding: 8px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      button {
+        appearance: none;
+        border: 0;
+        background: #2563eb;
+        color: white;
+        padding: 8px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button.secondary {
+        background: #e5e7eb;
+        color: #111827;
+        font-weight: 600;
+      }
+      .hint {
+        margin-top: 8px;
+        color: #6b7280;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      Paste the deck JSON below and click <b>Import</b>.
+    </div>
+    <div class="hint">
+      Creates one Frame per slide on the current page.
+    </div>
+    <textarea id="json" placeholder='{"document": ...}'></textarea>
+    <div class="row">
+      <button id="import">Import</button>
+      <button id="cancel" class="secondary">Cancel</button>
+    </div>
+
+    <script>
+      const textarea = document.getElementById("json");
+      document.getElementById("import").onclick = () => {
+        parent.postMessage(
+          { pluginMessage: { type: "IMPORT_JSON", json: textarea.value } },
+          "*"
+        );
+      };
+      document.getElementById("cancel").onclick = () => {
+        parent.postMessage({ pluginMessage: { type: "CANCEL" } }, "*");
+      };
+      window.onmessage = (event) => {
+        const msg = event.data.pluginMessage;
+        if (!msg) return;
+        if (msg.type === "SET_JSON") textarea.value = msg.json || "";
+      };
+    </script>
+  </body>
+</html>
+

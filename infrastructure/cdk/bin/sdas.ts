@@ -3,6 +3,7 @@ import { SdasFrontendStack } from '../lib/sdas-frontend-stack';
 import { SdasBackendStack } from '../lib/sdas-backend-stack';
 import { SdasDatabaseStack } from '../lib/sdas-database-stack';
 import { SdasDnsStack } from '../lib/sdas-dns-stack';
+import { SdasLowCostBackendStack } from '../lib/sdas-lowcost-backend-stack';
 
 // Create the root CDK App - this is the container that holds all stacks
 const app = new cdk.App();
@@ -11,6 +12,10 @@ const app = new cdk.App();
 // Usage: cdk deploy -c env=test  OR  cdk deploy -c env=prod
 // Defaults to 'test' if no env flag is provided - prevents accidental prod deploys
 const envName = app.node.tryGetContext('env') ?? 'test';
+// Architecture mode:
+// - "fargate" (default): ECS + ALBs + RDS + DocumentDB (production-grade, higher cost)
+// - "lowcost": single EC2 instance + S3 uploads, API behind CloudFront (no ALB/NAT/ECS/DocDB)
+const arch = (app.node.tryGetContext('arch') ?? 'fargate').toLowerCase();
 
 // Resolve the AWS account ID and region from environment variables
 // CDK_DEFAULT_ACCOUNT and CDK_DEFAULT_REGION are set automatically by `cdk bootstrap`
@@ -21,19 +26,27 @@ const awsEnv = {
 
 // Instantiate stacks - order matters: backend needs the DB, frontend needs the DNS zone
 // Each stack name includes envName so test and prod stacks never collide (e.g. Sdas-test-Database)
-const dbStack = new SdasDatabaseStack(app, `Sdas-${envName}-Database`, { env: awsEnv, envName})
 const dnsStack = new SdasDnsStack(app, `Sdas-${envName}-Dns`, { env: awsEnv, envName })
 
-// beStack receives dbStack.cluster (PostgreSQL endpoint), dbStack.docdbCluster (MongoDB endpoint),
-// and dbStack.vpc (shared network).  All three must share the same VPC so ECS tasks can reach
-// both databases without any internet routing.
-const beStack = new SdasBackendStack(app, `Sdas-${envName}-Backend`, {
-    env: awsEnv,
-    envName,
-    db:          dbStack.cluster,
-    docdbCluster: dbStack.docdbCluster,
-    vpc:         dbStack.vpc,
-});
+if (arch === 'lowcost') {
+    new SdasLowCostBackendStack(app, `Sdas-${envName}-BackendLowCost`, {
+        env: awsEnv,
+        envName,
+        hostedZone: dnsStack.hostedZone,
+    });
+} else {
+    const dbStack = new SdasDatabaseStack(app, `Sdas-${envName}-Database`, { env: awsEnv, envName});
+    // beStack receives dbStack.cluster (PostgreSQL endpoint), dbStack.docdbCluster (MongoDB endpoint),
+    // and dbStack.vpc (shared network).  All three must share the same VPC so ECS tasks can reach
+    // both databases without any internet routing.
+    new SdasBackendStack(app, `Sdas-${envName}-Backend`, {
+        env: awsEnv,
+        envName,
+        db:          dbStack.cluster,
+        docdbCluster: dbStack.docdbCluster,
+        vpc:         dbStack.vpc,
+    });
+}
 
 // Frontend receives dnsStack.hostedZone to create Route 53 A records and validate the SSL cert
 new SdasFrontendStack(app, `Sdas-${envName}-FrontEnd`, { env: awsEnv, envName, hostedZone: dnsStack.hostedZone });
